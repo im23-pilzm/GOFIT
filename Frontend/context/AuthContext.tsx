@@ -24,6 +24,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         let mounted = true;
 
         const loadSession = async () => {
+                        // Uncomment this line to sign out on app startup (for testing)
+                        await supabase.auth.signOut();
+
             const { data, error } = await supabase.auth.getSession();
 
             if (error) {

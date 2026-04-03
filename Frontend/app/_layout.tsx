@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import '../global.css';
 import 'react-native-reanimated'
 import { ActivityIndicator, View, useColorScheme } from 'react-native';
 import { AuthProvider } from '../context/AuthContext'
@@ -19,14 +20,13 @@ function RootNavigator() {
 
   return (
     <Stack>
-      {session ? (
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      ) : (
-        <>
-          <Stack.Screen name="login" options={{ title: 'Login' }} />
-          <Stack.Screen name="register" options={{ title: 'Register' }} />
-        </>
-      )}
+      <Stack.Screen
+        name="(tabs)"
+        options={{ headerShown: false }}
+        redirect={!session}
+      />
+      <Stack.Screen name="login" options={{ title: 'Login' }} redirect={!!session} />
+      <Stack.Screen name="register" options={{ title: 'Register' }} redirect={!!session} />
     </Stack>
   );
 }

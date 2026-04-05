@@ -1,6 +1,6 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 
@@ -40,82 +40,65 @@ export default function LoginScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Anmelden</Text>
+        <KeyboardAvoidingView
+            className="flex-1 bg-slate-900"
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        >
+            <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+                showsVerticalScrollIndicator={false}
+            >
+                <View className="gap-3">
+                    <View className="mb-10 items-center gap-2.5">
+                        <Image
+                            source={require('../assets/icons/dumbell.png')}
+                            className="h-[72px] w-[72px]"
+                            resizeMode="contain"
+                        />
+                        <Text className="text-[28px] font-extrabold tracking-[1.2px] text-white">GOFIT</Text>
+                    </View>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-                selectionColor="#ffffff"
-            />
+                    <Text className="mb-2 text-[30px] font-bold text-white">Anmelden</Text>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                selectionColor="#ffffff"
-            />
+                    <TextInput
+                        className="rounded-[10px] border border-slate-600 bg-slate-800 px-3.5 py-3 text-white"
+                        placeholder="Email"
+                        placeholderTextColor="#9ca3af"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="email-address"
+                        value={email}
+                        onChangeText={setEmail}
+                        selectionColor="#ffffff"
+                    />
 
-            {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+                    <TextInput
+                        className="rounded-[10px] border border-slate-600 bg-slate-800 px-3.5 py-3 text-white"
+                        placeholder="Password"
+                        placeholderTextColor="#9ca3af"
+                        secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
+                        selectionColor="#ffffff"
+                    />
 
-            <Pressable style={styles.button} disabled={isSubmitting} onPress={onSubmit}>
-                <Text style={styles.buttonText}>{isSubmitting ? 'Loading...' : 'Login'}</Text>
-            </Pressable>
+                    {errorMessage ? <Text className="text-red-300">{errorMessage}</Text> : null}
 
-            <Link href="/register" style={styles.link}>Create an account</Link>
-        </View>
+                    <Pressable
+                        className={`items-center rounded-[10px] bg-blue-600 py-3 ${isSubmitting ? 'opacity-60' : ''}`}
+                        disabled={isSubmitting}
+                        onPress={onSubmit}
+                    >
+                        <Text className="text-base font-semibold text-white">{isSubmitting ? 'Loading...' : 'Login'}</Text>
+                    </Pressable>
+
+                    <Link href="/register" className="mt-1 text-center text-sky-300">
+                        Create an account
+                    </Link>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#0f172a',
-        justifyContent: 'center',
-        padding: 24,
-        gap: 12,
-    },
-    title: {
-        color: '#ffffff',
-        fontSize: 30,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: '#1e293b',
-        borderColor: '#334155',
-        borderWidth: 1,
-        borderRadius: 10,
-        color: '#ffffff',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-    },
-    error: {
-        color: '#fca5a5',
-    },
-    button: {
-        backgroundColor: '#2563eb',
-        borderRadius: 10,
-        paddingVertical: 12,
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: '#ffffff',
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    link: {
-        color: '#93c5fd',
-        textAlign: 'center',
-        marginTop: 4,
-    },
-});

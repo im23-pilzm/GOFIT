@@ -30,7 +30,7 @@ export default function LoginScreen() {
         
         try {
             await signIn(normalizedEmail, password)
-            router.replace('/(tabs)')
+            router.replace('/(tabs)/home')
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'An error occurred')
         } finally {

@@ -28,6 +28,42 @@ type ScheduledWorkout = {
   scheduled_for: string;
 };
 
+type MuscleSummary = {
+  name: string;
+  count: number;
+};
+
+type WorkoutStats = {
+  totalWorkouts: number;
+  totalVolumeKg: number;
+  totalSets: number;
+  averageDurationMinutes: number;
+  mostTrainedMuscles: MuscleSummary[];
+};
+
+type WorkoutMuscleEntry = {
+  role?: string | null;
+  muscle_group?: {
+    name?: string | null;
+  } | null;
+};
+
+type WorkoutExerciseEntry = {
+  id: string;
+  exercise_id: string;
+  exercises?: {
+    name?: string | null;
+    exercise_muscles?: WorkoutMuscleEntry[] | null;
+  } | null;
+};
+
+type WorkoutRecord = Workout & {
+  duration_seconds?: number | null;
+  total_volume_kg?: number | null;
+  total_sets?: number | null;
+  workout_exercise?: WorkoutExerciseEntry[];
+};
+
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function monthLabel(date: Date) {
@@ -58,14 +94,17 @@ function formatDateTime(date: Date) {
   });
 }
 
+function formatNumber(value: number) {
+  return new Intl.NumberFormat().format(Math.round(value));
+}
+
 export default function HomeScreen() {
   const { session } = useAuth();
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const topCardHeight = Math.max(120, Math.min(180, Math.round(screenHeight * 0.17)));
-  const calendarHeight = Math.max(topCardHeight * 1.9, Math.min(320, Math.round(screenHeight * 0.34)));
-  const statsHeight = Math.max(calendarHeight * 1.15, Math.min(420, Math.round(screenHeight * 0.42)));
+  const calendarHeight = Math.max(260, Math.min(360, Math.round(screenHeight * 0.35)));
+  const statsHeight = Math.max(340, Math.min(520, Math.round(screenHeight * 0.44)));
 
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(() => {
@@ -79,6 +118,13 @@ export default function HomeScreen() {
   const [timeInput, setTimeInput] = useState('18:00');
   const [loadingData, setLoadingData] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [workoutStats, setWorkoutStats] = useState<WorkoutStats>({
+    totalWorkouts: 0,
+    totalVolumeKg: 0,
+    totalSets: 0,
+    averageDurationMinutes: 0,
+    mostTrainedMuscles: [],
+  });
 
   const selectedDateKey = useMemo(() => {
     if (!selectedDay) {
@@ -138,6 +184,13 @@ export default function HomeScreen() {
     if (!session?.user?.id) {
       setWorkouts([]);
       setScheduledWorkouts([]);
+      setWorkoutStats({
+        totalWorkouts: 0,
+        totalVolumeKg: 0,
+        totalSets: 0,
+        averageDurationMinutes: 0,
+        mostTrainedMuscles: [],
+      });
       return;
     }
 
@@ -146,7 +199,9 @@ export default function HomeScreen() {
 
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
-        .select('id, name, started_at')
+        .select(
+          'id, name, started_at, duration_seconds, total_volume_kg, total_sets, workout_exercise(id, exercise_id, exercises(name, exercise_muscles(role, muscle_group(name))))'
+        )
         .eq('user_id', session.user.id)
         .order('started_at', { ascending: false })
         .limit(40);
@@ -154,7 +209,49 @@ export default function HomeScreen() {
       if (workoutError) {
         Alert.alert('Workouts not loaded', workoutError.message);
       } else {
-        setWorkouts((workoutData ?? []) as Workout[]);
+        const loadedWorkouts = (workoutData ?? []) as WorkoutRecord[];
+
+        setWorkouts(loadedWorkouts);
+
+        const muscleCounts = new Map<string, number>();
+        let totalVolumeKg = 0;
+        let totalSets = 0;
+        let totalDurationSeconds = 0;
+        let countedDurations = 0;
+
+        for (const workout of loadedWorkouts) {
+          totalVolumeKg += Number(workout.total_volume_kg ?? 0);
+          totalSets += Number(workout.total_sets ?? 0);
+
+          if (typeof workout.duration_seconds === 'number' && workout.duration_seconds > 0) {
+            totalDurationSeconds += workout.duration_seconds;
+            countedDurations += 1;
+          }
+
+          for (const workoutExercise of workout.workout_exercise ?? []) {
+            for (const muscleEntry of workoutExercise.exercises?.exercise_muscles ?? []) {
+              const muscleName = muscleEntry.muscle_group?.name?.trim();
+              if (!muscleName) {
+                continue;
+              }
+
+              muscleCounts.set(muscleName, (muscleCounts.get(muscleName) ?? 0) + 1);
+            }
+          }
+        }
+
+        const mostTrainedMuscles = [...muscleCounts.entries()]
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3);
+
+        setWorkoutStats({
+          totalWorkouts: loadedWorkouts.length,
+          totalVolumeKg,
+          totalSets,
+          averageDurationMinutes: countedDurations > 0 ? totalDurationSeconds / 60 / countedDurations : 0,
+          mostTrainedMuscles,
+        });
       }
 
       const monthStart = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1, 0, 0, 0);
@@ -276,23 +373,6 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 16 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="mb-3 flex-row">
-          <View
-            className="mr-3 flex-1 rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
-            style={{ height: topCardHeight }}
-          >
-            <Text className="text-xl font-extrabold text-white">Workouts</Text>
-            <Text className="mt-2 text-slate-300">{workouts.length} saved workouts</Text>
-          </View>
-          <View
-            className="flex-1 rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
-            style={{ height: topCardHeight }}
-          >
-            <Text className="text-xl font-extrabold text-white">Volumen</Text>
-            <Text className="mt-2 text-slate-300">Coming soon</Text>
-          </View>
-        </View>
-
         <Pressable
           onPress={openCalendar}
           className="mb-3 rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
@@ -316,9 +396,47 @@ export default function HomeScreen() {
 
         <View
           className="rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
-          style={{ height: statsHeight }}
+          style={{ minHeight: statsHeight }}
         >
           <Text className="text-xl font-extrabold text-white">Statistik</Text>
+          <Text className="mt-2 text-slate-300">A quick look at your training volume and muscle coverage.</Text>
+
+          <View className="mt-4 flex-row flex-wrap justify-between">
+            <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
+              <Text className="text-xs uppercase tracking-wide text-slate-400">Total workouts</Text>
+              <Text className="mt-2 text-2xl font-extrabold text-white">{workoutStats.totalWorkouts}</Text>
+            </View>
+            <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
+              <Text className="text-xs uppercase tracking-wide text-slate-400">Total volume</Text>
+              <Text className="mt-2 text-2xl font-extrabold text-white">{formatNumber(workoutStats.totalVolumeKg)} kg</Text>
+            </View>
+            <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
+              <Text className="text-xs uppercase tracking-wide text-slate-400">Total sets</Text>
+              <Text className="mt-2 text-2xl font-extrabold text-white">{formatNumber(workoutStats.totalSets)}</Text>
+            </View>
+            <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
+              <Text className="text-xs uppercase tracking-wide text-slate-400">Avg duration</Text>
+              <Text className="mt-2 text-2xl font-extrabold text-white">
+                {workoutStats.averageDurationMinutes > 0 ? `${Math.round(workoutStats.averageDurationMinutes)} min` : '--'}
+              </Text>
+            </View>
+          </View>
+
+          <View className="mt-1 rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
+            <Text className="text-base font-bold text-white">Muscles trained most</Text>
+            {workoutStats.mostTrainedMuscles.length === 0 ? (
+              <Text className="mt-2 text-slate-400">No muscle data yet. Once workouts include exercises, this will show your top trained muscle groups.</Text>
+            ) : (
+              <View className="mt-3 gap-2">
+                {workoutStats.mostTrainedMuscles.map((muscle) => (
+                  <View key={muscle.name} className="flex-row items-center justify-between rounded-xl bg-slate-800 px-3 py-2">
+                    <Text className="font-semibold text-white">{muscle.name}</Text>
+                    <Text className="text-slate-300">{muscle.count} exercises</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
 

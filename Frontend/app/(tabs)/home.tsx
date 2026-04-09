@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
+import { apiRequest } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
 type Workout = {
@@ -149,6 +150,21 @@ export default function HomeScreen() {
 
   const selectedDayEntries = selectedDateKey ? scheduleByDay[selectedDateKey] ?? [] : [];
 
+  useEffect(() => {
+    // Keep a valid default selection so users can add quickly from the calendar modal.
+    if (workouts.length === 0) {
+      if (selectedWorkoutId) {
+        setSelectedWorkoutId('');
+      }
+      return;
+    }
+
+    const exists = workouts.some((workout) => workout.id === selectedWorkoutId);
+    if (!exists) {
+      setSelectedWorkoutId(workouts[0].id);
+    }
+  }, [workouts, selectedWorkoutId]);
+
   const upcomingSchedules = useMemo(() => {
     const now = Date.now();
     return [...scheduledWorkouts]
@@ -181,7 +197,7 @@ export default function HomeScreen() {
   }, [displayMonth]);
 
   useEffect(() => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.access_token) {
       setWorkouts([]);
       setScheduledWorkouts([]);
       setWorkoutStats({
@@ -257,25 +273,23 @@ export default function HomeScreen() {
       const monthStart = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1, 0, 0, 0);
       const monthEnd = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0, 23, 59, 59);
 
-      const { data: scheduleData, error: scheduleError } = await supabase
-        .from('workout_schedule')
-        .select('id, workout_id, workout_name, scheduled_for')
-        .eq('user_id', session.user.id)
-        .gte('scheduled_for', monthStart.toISOString())
-        .lte('scheduled_for', monthEnd.toISOString())
-        .order('scheduled_for', { ascending: true });
-
-      if (scheduleError) {
-        Alert.alert('Calendar not loaded', scheduleError.message);
-      } else {
-        setScheduledWorkouts((scheduleData ?? []) as ScheduledWorkout[]);
+      try {
+        const scheduleData = await apiRequest<ScheduledWorkout[]>(
+          `/api/workout-schedule?from=${encodeURIComponent(monthStart.toISOString())}&to=${encodeURIComponent(monthEnd.toISOString())}`,
+          { method: 'GET' },
+          session.access_token
+        );
+        setScheduledWorkouts(scheduleData ?? []);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        Alert.alert('Calendar not loaded', message);
       }
 
       setLoadingData(false);
     };
 
     fetchData();
-  }, [displayMonth, session?.user?.id]);
+  }, [displayMonth, session?.access_token, session?.user?.id]);
 
   const openCalendar = () => {
     setCalendarVisible(true);
@@ -298,8 +312,13 @@ export default function HomeScreen() {
   };
 
   const addWorkoutToSelectedDay = async () => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.access_token) {
       Alert.alert('Not signed in', 'Please sign in first.');
+      return;
+    }
+
+    if (workouts.length === 0) {
+      Alert.alert('No workouts available', 'Complete a workout first, then schedule it in the calendar.');
       return;
     }
 
@@ -338,31 +357,34 @@ export default function HomeScreen() {
 
     setSavingSchedule(true);
 
-    const { data, error } = await supabase
-      .from('workout_schedule')
-      .insert({
-        user_id: session.user.id,
-        workout_id: selectedWorkout.id,
-        workout_name: selectedWorkout.name,
-        scheduled_for: scheduledDate.toISOString(),
-      })
-      .select('id, workout_id, workout_name, scheduled_for')
-      .single();
-
-    setSavingSchedule(false);
-
-    if (error) {
-      Alert.alert('Could not save', error.message);
-      return;
-    }
-
-    setScheduledWorkouts((previous) => {
-      const next = [...previous, data as ScheduledWorkout];
-      return next.sort(
-        (a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
+    try {
+      const data = await apiRequest<ScheduledWorkout>(
+        '/api/workout-schedule',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            workout_id: selectedWorkout.id,
+            workout_name: selectedWorkout.name,
+            scheduled_for: scheduledDate.toISOString(),
+          }),
+        },
+        session.access_token
       );
-    });
-    Alert.alert('Saved', 'Workout added to your calendar.');
+
+      setScheduledWorkouts((previous) => {
+        const next = [...previous, data];
+        return next.sort(
+          (a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
+        );
+      });
+      Alert.alert('Saved', 'Workout added to your calendar.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('Could not save', message);
+      return;
+    } finally {
+      setSavingSchedule(false);
+    }
   };
 
   return (
@@ -566,9 +588,9 @@ export default function HomeScreen() {
 
                   <TouchableOpacity
                     onPress={addWorkoutToSelectedDay}
-                    disabled={savingSchedule || workouts.length === 0}
+                    disabled={savingSchedule}
                     className={`rounded-lg px-4 py-3 ${
-                      savingSchedule || workouts.length === 0 ? 'bg-slate-600' : 'bg-cyan-600'
+                      savingSchedule ? 'bg-slate-600' : 'bg-cyan-600'
                     }`}
                   >
                     <Text className="text-center font-extrabold text-white">

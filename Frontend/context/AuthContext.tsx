@@ -8,7 +8,7 @@ type AuthContextValue = {
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
-}
+};
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -24,9 +24,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         let mounted = true;
 
         const loadSession = async () => {
-                        // Uncomment this line to sign out on app startup (for testing)
-                        await supabase.auth.signOut();
-
             const { data, error } = await supabase.auth.getSession();
 
             if (error) {
@@ -55,7 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
             throw new Error(error.message);
@@ -63,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     const signUp = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({ email, password });
 
         if (error) {
             throw new Error(error.message);
@@ -71,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut()
+        const { error } = await supabase.auth.signOut();
 
         if (error) {
             throw new Error(error.message);
@@ -84,5 +81,5 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 

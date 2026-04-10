@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const { supabase } = require("./supabaseClient");
+const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const workoutScheduleRoutes = require("./routes/workoutSchedule");
 
@@ -18,6 +19,7 @@ app.use((req, res, next) => {
 
   return next();
 });
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/workout-schedule", workoutScheduleRoutes);
 

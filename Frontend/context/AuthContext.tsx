@@ -1,5 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { ReactNode, createContext, useEffect, useMemo, useState } from 'react';
+import { apiRequest } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
 type AuthContextValue = {
@@ -8,6 +9,20 @@ type AuthContextValue = {
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
+};
+
+type AuthApiResponse = {
+    user: {
+        id: string;
+        email: string;
+    } | null;
+    session: {
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+        token_type: string;
+    } | null;
+    email_confirmation_required?: boolean;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -52,7 +67,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const data = await apiRequest<AuthApiResponse>('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (!data.session?.access_token || !data.session.refresh_token) {
+            throw new Error('Login did not return a valid session.');
+        }
+
+        const { error } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+        });
 
         if (error) {
             throw new Error(error.message);
@@ -60,7 +87,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     const signUp = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const data = await apiRequest<AuthApiResponse>('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (!data.session?.access_token || !data.session.refresh_token) {
+            throw new Error('Please confirm your email address before logging in.');
+        }
+
+        const { error } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+        });
 
         if (error) {
             throw new Error(error.message);

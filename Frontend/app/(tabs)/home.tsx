@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -119,6 +121,7 @@ export default function HomeScreen() {
   const [timeInput, setTimeInput] = useState('18:00');
   const [loadingData, setLoadingData] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const calendarScrollRef = useRef<ScrollView | null>(null);
   const [workoutStats, setWorkoutStats] = useState<WorkoutStats>({
     totalWorkouts: 0,
     totalVolumeKg: 0,
@@ -387,6 +390,12 @@ export default function HomeScreen() {
     }
   };
 
+  const handleTimeInputFocus = () => {
+    requestAnimationFrame(() => {
+      calendarScrollRef.current?.scrollToEnd({ animated: true });
+    });
+  };
+
   return (
     <>
       <ScrollView
@@ -462,9 +471,27 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={calendarVisible} animationType="slide" transparent onRequestClose={closeCalendar}>
-        <View className="flex-1 bg-black/60">
-          <View className="mt-auto max-h-[88%] rounded-t-3xl border border-slate-700 bg-slate-900 px-4 pb-6 pt-4">
+      <Modal
+        visible={calendarVisible}
+        animationType="slide"
+        transparent={false}
+        presentationStyle="fullScreen"
+        onRequestClose={closeCalendar}
+      >
+        <KeyboardAvoidingView
+          className="flex-1"
+          style={{ flex: 1, backgroundColor: '#0f172a' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 12 : 0}
+        >
+          <View className="flex-1 bg-slate-900">
+            <View
+              className="flex-1 bg-slate-900 px-4"
+              style={{
+                paddingTop: Math.max(insets.top + 8, 16),
+                paddingBottom: Math.max(insets.bottom, 16),
+              }}
+            >
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-xl font-extrabold text-white">Workout Calendar</Text>
               <TouchableOpacity onPress={closeCalendar} className="rounded-lg bg-slate-800 px-3 py-2">
@@ -488,7 +515,12 @@ export default function HomeScreen() {
                 <Text className="mt-2 text-slate-300">Loading calendar data...</Text>
               </View>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView
+                ref={calendarScrollRef}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 24) }}
+              >
                 <View className="mb-2 flex-row justify-between">
                   {WEEKDAY_LABELS.map((label) => (
                     <Text key={label} className="w-[13.5%] text-center text-xs font-semibold text-slate-400">
@@ -547,6 +579,7 @@ export default function HomeScreen() {
                   <TextInput
                     value={timeInput}
                     onChangeText={setTimeInput}
+                    onFocus={handleTimeInputFocus}
                     placeholder="18:00"
                     placeholderTextColor="#64748b"
                     className="mb-3 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white"
@@ -600,8 +633,9 @@ export default function HomeScreen() {
                 </View>
               </ScrollView>
             )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

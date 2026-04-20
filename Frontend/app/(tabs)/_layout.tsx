@@ -13,12 +13,32 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const [barWidth, setBarWidth] = useState(0);
   const translateX = useRef(new Animated.Value(0)).current;
 
+  const visibleRoutes = useMemo(
+    () =>
+      state.routes.filter((route) => {
+        const hasTabIcon = Object.prototype.hasOwnProperty.call(ICONS, route.name);
+        if (!hasTabIcon) {
+          return false;
+        }
+
+        const { options } = descriptors[route.key];
+        const routeOptions = options as { href?: string | null };
+        return routeOptions.href !== null;
+      }),
+    [descriptors, state.routes]
+  );
+
+  const activeVisibleIndex = useMemo(() => {
+    const currentRoute = state.routes[state.index];
+    return visibleRoutes.findIndex((route) => route.key === currentRoute?.key);
+  }, [state.index, state.routes, visibleRoutes]);
+
   const tabWidth = useMemo(() => {
-    if (!barWidth || state.routes.length === 0) {
+    if (!barWidth || visibleRoutes.length === 0) {
       return 0;
     }
-    return barWidth / state.routes.length;
-  }, [barWidth, state.routes.length]);
+    return barWidth / visibleRoutes.length;
+  }, [barWidth, visibleRoutes.length]);
 
   const activePillWidth = 56;
 
@@ -27,7 +47,11 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       return;
     }
 
-    const targetX = state.index * tabWidth + (tabWidth - activePillWidth) / 2;
+    if (activeVisibleIndex < 0) {
+      return;
+    }
+
+    const targetX = activeVisibleIndex * tabWidth + (tabWidth - activePillWidth) / 2;
 
     Animated.spring(translateX, {
       toValue: targetX,
@@ -36,7 +60,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       damping: 24,
       mass: 0.8,
     }).start();
-  }, [state.index, tabWidth, translateX]);
+  }, [activeVisibleIndex, tabWidth, translateX]);
 
   return (
     <View
@@ -51,7 +75,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         paddingBottom: 10,
       }}
     >
-      {tabWidth ? (
+      {tabWidth && activeVisibleIndex >= 0 ? (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -69,9 +93,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         />
       ) : null}
 
-      {state.routes.map((route, index) => {
+      {visibleRoutes.map((route) => {
         const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+        const isFocused = state.routes[state.index]?.key === route.key;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -134,6 +158,12 @@ export default function TabLayout() {
         name="workouts"
         options={{
           title: 'Workouts',
+        }}
+      />
+      <Tabs.Screen
+        name="createWorkout"
+        options={{
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen

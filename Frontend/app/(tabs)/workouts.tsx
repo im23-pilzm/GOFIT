@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useRouter } from 'expo-router';
 
@@ -26,6 +26,8 @@ export default function WorkoutsScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [openMenuWorkoutId, setOpenMenuWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -69,12 +71,85 @@ export default function WorkoutsScreen() {
   }, [workouts]);
 
   const goToCreateWorkout = () => {
-    router.push('/workout-erstellen' as Href);
+    router.push('/(tabs)/createWorkout' as Href);
   };
 
   const goToCurrentWorkout = (workout: Workout) => {
     const target = `/current-workout?workoutId=${encodeURIComponent(workout.id)}&workoutName=${encodeURIComponent(workout.name)}`;
     router.push(target as Href);
+  };
+
+  const goToEditWorkout = (workout: Workout) => {
+    const target = `/(tabs)/createWorkout?workoutId=${encodeURIComponent(workout.id)}`;
+    router.push(target as Href);
+  };
+
+  const deleteWorkout = (workout: Workout) => {
+    setOpenMenuWorkoutId(null);
+
+    Alert.alert('Delete workout', `Delete "${workout.name}"?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingWorkoutId(workout.id);
+
+          try {
+            const { data: exerciseRows, error: exerciseRowsError } = await supabase
+              .from('workout_exercise')
+              .select('id')
+              .eq('workout_id', workout.id);
+
+            if (exerciseRowsError) {
+              throw new Error(exerciseRowsError.message);
+            }
+
+            const workoutExerciseIds = (exerciseRows ?? []).map((row) => row.id);
+
+            if (workoutExerciseIds.length > 0) {
+              const { error: setsDeleteError } = await supabase
+                .from('sets')
+                .delete()
+                .in('workout_exercise_id', workoutExerciseIds);
+
+              if (setsDeleteError) {
+                throw new Error(setsDeleteError.message);
+              }
+            }
+
+            const { error: workoutExerciseDeleteError } = await supabase
+              .from('workout_exercise')
+              .delete()
+              .eq('workout_id', workout.id);
+
+            if (workoutExerciseDeleteError) {
+              throw new Error(workoutExerciseDeleteError.message);
+            }
+
+            const { error: workoutDeleteError } = await supabase
+              .from('workouts')
+              .delete()
+              .eq('id', workout.id)
+              .eq('user_id', session?.user?.id ?? '');
+
+            if (workoutDeleteError) {
+              throw new Error(workoutDeleteError.message);
+            }
+
+            setWorkouts((previous) => previous.filter((entry) => entry.id !== workout.id));
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to delete workout';
+            Alert.alert('Delete failed', message);
+          } finally {
+            setDeletingWorkoutId(null);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -112,7 +187,53 @@ export default function WorkoutsScreen() {
           {!loading &&
             uniqueWorkouts.map((workout) => (
               <View key={workout.id} className="mt-4 rounded-xl border border-slate-800 bg-slate-800/70 p-3">
-                <Text className="text-base font-semibold text-white">{workout.name}</Text>
+                <View className="relative flex-row items-center justify-between">
+                  <Text className="flex-1 pr-3 text-base font-semibold text-white">{workout.name}</Text>
+
+                  <Pressable
+                    onPress={() =>
+                      setOpenMenuWorkoutId((current) => (current === workout.id ? null : workout.id))
+                    }
+                    className={`h-8 w-8 items-center justify-center rounded-md border ${
+                      openMenuWorkoutId === workout.id
+                        ? 'border-slate-500 bg-slate-700/70'
+                        : 'border-slate-700 bg-slate-900/80'
+                    }`}
+                  >
+                    <View className="flex-row items-center gap-1">
+                      <View className="h-1 w-1 rounded-full bg-slate-300" />
+                      <View className="h-1 w-1 rounded-full bg-slate-300" />
+                      <View className="h-1 w-1 rounded-full bg-slate-300" />
+                    </View>
+                  </Pressable>
+
+                  {openMenuWorkoutId === workout.id ? (
+                    <View className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-slate-600 bg-slate-900 p-2">
+                      <Pressable
+                        onPress={() => {
+                          setOpenMenuWorkoutId(null);
+                          goToEditWorkout(workout);
+                        }}
+                        className="rounded-lg px-3 py-2 active:bg-slate-800"
+                      >
+                        <Text className="text-sm font-medium text-slate-200">Edit workout</Text>
+                      </Pressable>
+
+                      <View className="my-1 h-px bg-slate-700" />
+
+                      <Pressable
+                        onPress={() => deleteWorkout(workout)}
+                        disabled={deletingWorkoutId === workout.id}
+                        className="rounded-lg px-3 py-2 active:bg-slate-800"
+                      >
+                        <Text className="text-sm font-medium text-rose-300">
+                          {deletingWorkoutId === workout.id ? 'Deleting...' : 'Delete workout'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+
                 <Text className="mt-1 text-xs text-slate-400">Zuletzt: {formatLastDone(workout.started_at)}</Text>
 
                 <Pressable

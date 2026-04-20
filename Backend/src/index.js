@@ -6,6 +6,7 @@ const { supabase } = require("./supabaseClient");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const workoutScheduleRoutes = require("./routes/workoutSchedule");
+const exerciseRoutes = require("./routes/exercises");
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -22,6 +23,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/workout-schedule", workoutScheduleRoutes);
+app.use("/api/exercises", exerciseRoutes);
 
 app.get("/", async (req, res) => {
   try {

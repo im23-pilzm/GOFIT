@@ -3,16 +3,37 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const { supabase } = require("./supabaseClient");
+
+const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
+const workoutScheduleRoutes = require("./routes/workoutSchedule");
+const exerciseRoutes = require("./routes/exercises");
+const workoutRoutes = require("./routes/workouts");
 const exerciseMetadataRoutes = require("./routes/exerciseMetadata");
 
 app.use(express.json());
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
+
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/workout-schedule", workoutScheduleRoutes);
+app.use("/api/exercises", exerciseRoutes);
+app.use("/api/workouts", workoutRoutes);
 app.use("/api", exerciseMetadataRoutes);
 
 app.get("/", async (req, res) => {
   try {
-    const { error } = await supabase.from("users").select("id").limit(1);
+    const { error } = await supabase.from("equipment").select("id").limit(1);
     if (error) {
       return res.status(500).json({
         ok: false,

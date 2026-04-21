@@ -1,7 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const Joi = require("joi");
+const { createClient } = require("@supabase/supabase-js");
 const { supabase } = require("../supabaseClient");
+
+const createAuthedSupabase = (accessToken) =>
+  createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
 
 const idParamSchema = Joi.object({
   id: Joi.string().trim().min(1).required(),
@@ -24,6 +34,7 @@ const auth = async (req, res, next) => {
   }
 
   req.user = data.user;
+  req.accessToken = token;
   next();
 };
 
@@ -47,7 +58,9 @@ router.use("/:id", auth, validateId, ensureSelf);
 router.get("/:id", async (req, res) => {
   const userId = req.params.id;
 
-  const { data, error } = await supabase
+  const userClient = createAuthedSupabase(req.accessToken);
+
+  const { data, error } = await userClient
     .from("users")
     .select("id, email, username, avatar_url, created_at")
     .eq("id", userId)
@@ -76,7 +89,9 @@ router.put("/:id", async (req, res) => {
     updates.avatar_url = req.body.avatar_url;
   }
 
-  const { data, error: updateError } = await supabase
+  const userClient = createAuthedSupabase(req.accessToken);
+
+  const { data, error: updateError } = await userClient
     .from("users")
     .update(updates)
     .eq("id", userId)

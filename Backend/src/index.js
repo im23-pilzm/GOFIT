@@ -3,10 +3,12 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const { supabase } = require("./supabaseClient");
-const userRoutes = require("./routes/users")
+const userRoutes = require("./routes/users");
+const exerciseMetadataRoutes = require("./routes/exerciseMetadata");
 
 app.use(express.json());
 app.use("/api/users", userRoutes);
+app.use("/api", exerciseMetadataRoutes);
 
 app.get("/", async (req, res) => {
   try {

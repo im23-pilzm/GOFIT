@@ -23,6 +23,11 @@ const workoutIdParamSchema = Joi.object({
   id: uuidSchema.required(),
 });
 
+const workoutExerciseParamsSchema = Joi.object({
+  workoutId: uuidSchema.required(),
+  exerciseId: uuidSchema, // exerciseId is optional for GET/POST but required for PUT/DELETE
+});
+
 const listQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
@@ -47,6 +52,17 @@ const finishWorkoutSchema = Joi.object({
   total_volume_kg: Joi.number().integer().min(0),
   total_sets: Joi.number().integer().min(0),
 });
+
+const createWorkoutExerciseSchema = Joi.object({
+  exercise_id: uuidSchema.required(),
+  position: Joi.number().integer().min(0),
+  rest_timer_seconds: Joi.number().integer().min(0).default(60),
+});
+
+const updateWorkoutExerciseSchema = Joi.object({
+  position: Joi.number().integer().min(0),
+  rest_timer_seconds: Joi.number().integer().min(0),
+}).min(1);
 
 const auth = async (req, res, next) => {
   try {
@@ -298,6 +314,187 @@ router.post("/:id/finish", auth, async (req, res) => {
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ message: "Unexpected error while finishing workout" });
+  }
+});
+
+// --- Workout Exercise Endpoints ---
+
+// GET /api/workouts/:workoutId/exercises - List exercises in workout
+router.get("/:workoutId/exercises", auth, async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+    const { error: paramError } = Joi.object({ workoutId: uuidSchema.required() }).validate({ workoutId });
+    if (paramError) {
+      return res.status(400).json({ message: paramError.details[0].message });
+    }
+
+    const userClient = createAuthedSupabase(req.accessToken);
+    
+    // Check workout existence and ownership
+    const { data: workout, error: workoutError } = await userClient
+      .from("workouts")
+      .select("id")
+      .eq("id", workoutId)
+      .eq("user_id", req.user.id)
+      .maybeSingle();
+
+    if (workoutError) return res.status(500).json({ message: workoutError.message });
+    if (!workout) return res.status(404).json({ message: "Workout not found" });
+
+    const { data, error } = await userClient
+      .from("workout_exercise")
+      .select(`
+        *,
+        exercises (*),
+        sets (*)
+      `)
+      .eq("workout_id", workoutId)
+      .order("position", { ascending: true });
+
+    if (error) return res.status(500).json({ message: error.message });
+
+    return res.status(200).json(data ?? []);
+  } catch (error) {
+    return res.status(500).json({ message: "Unexpected error while listing workout exercises" });
+  }
+});
+
+// POST /api/workouts/:workoutId/exercises - Add exercise to workout
+router.post("/:workoutId/exercises", auth, async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+    const { error: paramError } = Joi.object({ workoutId: uuidSchema.required() }).validate({ workoutId });
+    if (paramError) {
+      return res.status(400).json({ message: paramError.details[0].message });
+    }
+
+    const { error: bodyError, value: body } = createWorkoutExerciseSchema.validate(req.body);
+    if (bodyError) {
+      return res.status(400).json({ message: bodyError.details[0].message });
+    }
+
+    const userClient = createAuthedSupabase(req.accessToken);
+
+    // Check ownership
+    const { data: workout, error: workoutError } = await userClient
+      .from("workouts")
+      .select("id")
+      .eq("id", workoutId)
+      .eq("user_id", req.user.id)
+      .maybeSingle();
+
+    if (workoutError) return res.status(500).json({ message: workoutError.message });
+    if (!workout) return res.status(404).json({ message: "Workout not found" });
+
+    let insertPosition = body.position;
+    if (insertPosition === undefined) {
+      const { data: maxPosData } = await userClient
+        .from("workout_exercise")
+        .select("position")
+        .eq("workout_id", workoutId)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      insertPosition = maxPosData ? Number(maxPosData.position) + 1 : 0;
+    }
+
+    const { data, error } = await userClient
+      .from("workout_exercise")
+      .insert({
+        ...body,
+        workout_id: workoutId,
+        position: insertPosition,
+      })
+      .select("*")
+      .single();
+
+    if (error) return res.status(400).json({ message: error.message });
+
+    return res.status(201).json(data);
+  } catch (error) {
+    return res.status(500).json({ message: "Unexpected error while adding exercise to workout" });
+  }
+});
+
+// PUT /api/workouts/:workoutId/exercises/:exerciseId - Update exercise in workout
+router.put("/:workoutId/exercises/:exerciseId", auth, async (req, res) => {
+  try {
+    const { workoutId, exerciseId } = req.params;
+    const { error: paramError } = workoutExerciseParamsSchema.validate({ workoutId, exerciseId });
+    if (paramError) {
+      return res.status(400).json({ message: paramError.details[0].message });
+    }
+
+    const { error: bodyError, value: body } = updateWorkoutExerciseSchema.validate(req.body);
+    if (bodyError) {
+      return res.status(400).json({ message: bodyError.details[0].message });
+    }
+
+    const userClient = createAuthedSupabase(req.accessToken);
+
+    // Check ownership
+    const { data: workout, error: workoutError } = await userClient
+      .from("workouts")
+      .select("id")
+      .eq("id", workoutId)
+      .eq("user_id", req.user.id)
+      .maybeSingle();
+
+    if (workoutError) return res.status(500).json({ message: workoutError.message });
+    if (!workout) return res.status(404).json({ message: "Workout not found" });
+
+    // Update. Since user prompt used :exerciseId, we update where both IDs match.
+    // If there are multiple entries for the same exercise, it will update all.
+    const { data, error } = await userClient
+      .from("workout_exercise")
+      .update(body)
+      .eq("workout_id", workoutId)
+      .eq("exercise_id", exerciseId)
+      .select("*");
+
+    if (error) return res.status(400).json({ message: error.message });
+    if (data.length === 0) return res.status(404).json({ message: "Exercise not found in this workout" });
+
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({ message: "Unexpected error while updating workout exercise" });
+  }
+});
+
+// DELETE /api/workouts/:workoutId/exercises/:exerciseId - Remove exercise from workout
+router.delete("/:workoutId/exercises/:exerciseId", auth, async (req, res) => {
+  try {
+    const { workoutId, exerciseId } = req.params;
+    const { error: paramError } = workoutExerciseParamsSchema.validate({ workoutId, exerciseId });
+    if (paramError) {
+      return res.status(400).json({ message: paramError.details[0].message });
+    }
+
+    const userClient = createAuthedSupabase(req.accessToken);
+
+    // Check ownership
+    const { data: workout, error: workoutError } = await userClient
+      .from("workouts")
+      .select("id")
+      .eq("id", workoutId)
+      .eq("user_id", req.user.id)
+      .maybeSingle();
+
+    if (workoutError) return res.status(500).json({ message: workoutError.message });
+    if (!workout) return res.status(404).json({ message: "Workout not found" });
+
+    const { error } = await userClient
+      .from("workout_exercise")
+      .delete()
+      .eq("workout_id", workoutId)
+      .eq("exercise_id", exerciseId);
+
+    if (error) return res.status(400).json({ message: error.message });
+
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ message: "Unexpected error while removing workout exercise" });
   }
 });
 

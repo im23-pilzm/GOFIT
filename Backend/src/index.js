@@ -29,7 +29,7 @@ app.use("/api/workouts", workoutRoutes);
 
 app.get("/", async (req, res) => {
   try {
-    const { error } = await supabase.from("users").select("id").limit(1);
+    const { error } = await supabase.from("equipment").select("id").limit(1);
     if (error) {
       return res.status(500).json({
         ok: false,

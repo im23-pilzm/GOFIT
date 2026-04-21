@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -31,29 +32,32 @@ export default function ExerciseSelectScreen() {
     return new Set(raw.split(',').filter(Boolean));
   }, [params.selectedIds]);
 
-  useEffect(() => {
-    const loadExercises = async () => {
-      setLoading(true);
-      setErrorMessage(null);
+  const loadExercises = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('id, name')
-        .order('name', { ascending: true })
-        .limit(250);
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('id, name')
+      .order('name', { ascending: true })
+      .limit(250);
 
-      if (error) {
-        setExercises([]);
-        setErrorMessage(error.message);
-      } else {
-        setExercises((data ?? []) as Exercise[]);
-      }
+    if (error) {
+      setExercises([]);
+      setErrorMessage(error.message);
+    } else {
+      setExercises((data ?? []) as Exercise[]);
+    }
 
-      setLoading(false);
-    };
-
-    loadExercises();
+    setLoading(false);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExercises();
+      return () => undefined;
+    }, [loadExercises])
+  );
 
   const filteredExercises = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -66,7 +70,23 @@ export default function ExerciseSelectScreen() {
   }, [exercises, query]);
 
   const goBack = () => {
-    router.back();
+    const draftParam = typeof params.draft === 'string' ? params.draft : '';
+    const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+    const target =
+      `/(tabs)/createWorkout?draft=${encodeURIComponent(draftParam)}` +
+      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+
+    router.replace(target as Href);
+  };
+
+  const openCreateExercise = () => {
+    const draftParam = typeof params.draft === 'string' ? params.draft : '';
+    const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+    const target =
+      `/create-exercise?draft=${encodeURIComponent(draftParam)}` +
+      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+
+    router.push(target as Href);
   };
 
   const selectExercise = (exercise: Exercise) => {
@@ -90,20 +110,36 @@ export default function ExerciseSelectScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center justify-between">
-          <Text className="text-3xl font-extrabold text-white">Select Exercise</Text>
-          <Pressable onPress={goBack} className="rounded-lg border border-slate-700 px-3 py-2">
-            <Text className="text-sm font-semibold text-slate-300">Cancel</Text>
-          </Pressable>
+        <View className="gap-3">
+          <View className="flex-row items-center">
+            <Pressable onPress={goBack} className="h-10 flex-row items-center rounded-full border border-slate-700 px-4">
+              <Text className="text-sm font-semibold text-slate-300">Go Back</Text>
+            </Pressable>
+          </View>
+
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="flex-1 text-3xl font-extrabold text-white">Select Exercise</Text>
+
+            <Pressable onPress={openCreateExercise} className="h-10 flex-row items-center rounded-full bg-sky-500 px-4">
+              <Text className="text-sm font-semibold text-sky-950">Create Exercise</Text>
+            </Pressable>
+          </View>
+
+          <Text className="text-sm text-slate-400">Pick one from the list or add a new one first.</Text>
         </View>
 
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search exercises"
-          placeholderTextColor="#94a3b8"
-          className="mt-4 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-base text-white"
-        />
+        <View className="mt-5 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Search</Text>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search exercises"
+            placeholderTextColor="#94a3b8"
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="mt-2 text-base text-white"
+          />
+        </View>
 
         {loading ? (
           <View className="py-10">

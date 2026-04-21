@@ -115,12 +115,13 @@ const validateUpdateBody = (req, res, next) => {
   return next();
 };
 
-const ensureWorkoutOwnership = async (userId, workoutId) => {
+const ensureWorkoutOwnership = async (accessToken, userId, workoutId) => {
   if (!workoutId) {
     return { ok: true };
   }
 
-  const { data, error } = await supabase
+  const userClient = createAuthedSupabase(accessToken);
+  const { data, error } = await userClient
     .from("workouts")
     .select("id")
     .eq("id", workoutId)
@@ -176,7 +177,7 @@ router.get("/", auth, validateQuery, async (req, res) => {
 router.post("/", auth, validateCreateBody, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);
-    const ownership = await ensureWorkoutOwnership(req.user.id, req.validatedBody.workout_id);
+    const ownership = await ensureWorkoutOwnership(req.accessToken, req.user.id, req.validatedBody.workout_id);
     if (!ownership.ok) {
       return res.status(ownership.status).json({ message: ownership.message });
     }
@@ -208,7 +209,7 @@ router.put("/:scheduleId", auth, validateScheduleId, validateUpdateBody, async (
   try {
     const userClient = createAuthedSupabase(req.accessToken);
     if (Object.prototype.hasOwnProperty.call(req.validatedBody, "workout_id")) {
-      const ownership = await ensureWorkoutOwnership(req.user.id, req.validatedBody.workout_id);
+      const ownership = await ensureWorkoutOwnership(req.accessToken, req.user.id, req.validatedBody.workout_id);
       if (!ownership.ok) {
         return res.status(ownership.status).json({ message: ownership.message });
       }

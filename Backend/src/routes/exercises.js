@@ -32,7 +32,6 @@ const createExerciseSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
   equipment_id: Joi.number().integer().allow(null),
   exercise_type_id: Joi.number().integer().allow(null),
-  image_url: Joi.string().uri().allow(null, ""),
   is_public: Joi.boolean().default(false),
 });
 
@@ -40,7 +39,6 @@ const updateExerciseSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255),
   equipment_id: Joi.number().integer().allow(null),
   exercise_type_id: Joi.number().integer().allow(null),
-  image_url: Joi.string().uri().allow(null, ""),
   is_public: Joi.boolean(),
 }).min(1);
 

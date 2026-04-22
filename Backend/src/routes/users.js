@@ -19,7 +19,6 @@ const idParamSchema = Joi.object({
 
 const updateUserSchema = Joi.object({
   username: Joi.string().min(2).max(50),
-  avatar_url: Joi.string().uri().allow(null),
 }).min(1);
 
 const auth = async (req, res, next) => {
@@ -62,7 +61,7 @@ router.get("/:id", async (req, res) => {
 
   const { data, error } = await userClient
     .from("users")
-    .select("id, email, username, avatar_url, created_at")
+    .select("id, email, username, created_at")
     .eq("id", userId)
     .single();
 
@@ -85,9 +84,6 @@ router.put("/:id", async (req, res) => {
   if (Object.prototype.hasOwnProperty.call(req.body, "username")) {
     updates.username = req.body.username;
   }
-  if (Object.prototype.hasOwnProperty.call(req.body, "avatar_url")) {
-    updates.avatar_url = req.body.avatar_url;
-  }
 
   const userClient = createAuthedSupabase(req.accessToken);
 
@@ -95,7 +91,7 @@ router.put("/:id", async (req, res) => {
     .from("users")
     .update(updates)
     .eq("id", userId)
-    .select("id, email, username, avatar_url, created_at")
+    .select("id, email, username, created_at")
     .single();
 
   if (updateError) {  

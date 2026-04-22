@@ -6,9 +6,24 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { supabase } from '@/lib/supabase';
 
+type MuscleGroup = {
+  name: string;
+};
+
+type Equipment = {
+  name: string;
+};
+
+type ExerciseMuscle = {
+  role: string;
+  muscle_group: MuscleGroup;
+};
+
 type Exercise = {
   id: string;
   name: string;
+  equipment: Equipment | null;
+  exercise_muscles: ExerciseMuscle[];
 };
 
 type Params = {
@@ -38,7 +53,7 @@ export default function ExerciseSelectScreen() {
 
     const { data, error } = await supabase
       .from('exercises')
-      .select('id, name')
+      .select('id, name, equipment(name), exercise_muscles(role, muscle_group(name))')
       .order('name', { ascending: true })
       .limit(250);
 
@@ -162,6 +177,14 @@ export default function ExerciseSelectScreen() {
         {!loading &&
           filteredExercises.map((exercise) => {
             const disabled = selectedIdSet.has(exercise.id);
+            const primaryMuscles = exercise.exercise_muscles
+              .filter((em) => em.role === 'primary')
+              .map((em) => em.muscle_group.name);
+            const secondaryMuscles = exercise.exercise_muscles
+              .filter((em) => em.role === 'secondary')
+              .map((em) => em.muscle_group.name);
+            const allMuscles = [...primaryMuscles, ...secondaryMuscles];
+            const equipmentName = exercise.equipment?.name || 'No equipment';
 
             return (
               <Pressable
@@ -176,6 +199,14 @@ export default function ExerciseSelectScreen() {
                 <Text className={`mt-1 text-xs ${disabled ? 'text-slate-600' : 'text-slate-400'}`}>
                   {disabled ? 'Already selected' : 'Tap to add to workout'}
                 </Text>
+                <View className="mt-2 flex-col gap-1">
+                  <Text className={`text-xs ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
+                    <Text className="font-semibold">Equipment:</Text> {equipmentName}
+                  </Text>
+                  <Text className={`text-xs ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
+                    <Text className="font-semibold">Targets:</Text> {allMuscles.length > 0 ? allMuscles.join(', ') : 'No muscles'}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}

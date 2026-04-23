@@ -30,6 +30,11 @@ function RootNavigator() {
         options={{ headerShown: false }}
         redirect={!session}
       />
+      <Stack.Screen
+        name="current-workout"
+        options={{ headerShown: false }}
+        redirect={!session}
+      />
       <Stack.Screen name="login" options={{ title: 'Login' }} redirect={!!session} />
       <Stack.Screen name="register" options={{ title: 'Register' }} redirect={!!session} />
     </Stack>

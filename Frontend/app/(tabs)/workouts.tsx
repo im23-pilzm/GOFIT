@@ -27,6 +27,7 @@ export default function WorkoutsScreen() {
   const [loading, setLoading] = useState(false);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [startingWorkoutId, setStartingWorkoutId] = useState<string | null>(null);
   const [openMenuWorkoutId, setOpenMenuWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,9 +75,92 @@ export default function WorkoutsScreen() {
     router.push('/(tabs)/createWorkout' as Href);
   };
 
-  const goToCurrentWorkout = (workout: Workout) => {
-    const target = `/current-workout?workoutId=${encodeURIComponent(workout.id)}&workoutName=${encodeURIComponent(workout.name)}`;
-    router.push(target as Href);
+  const goToCurrentWorkout = async (workout: Workout) => {
+    if (!session?.user?.id) {
+      Alert.alert('Not signed in', 'Please log in again.');
+      return;
+    }
+
+    setStartingWorkoutId(workout.id);
+
+    try {
+      const { data: sourceExercises, error: sourceExercisesError } = await supabase
+        .from('workout_exercise')
+        .select('id, exercise_id, position, rest_timer_seconds, sets(id, position, weight_kg, reps)')
+        .eq('workout_id', workout.id)
+        .order('position', { ascending: true });
+
+      if (sourceExercisesError) {
+        throw new Error(sourceExercisesError.message);
+      }
+
+      const totalPlannedSets = (sourceExercises ?? []).reduce((sum, row: any) => {
+        const rowSets = Array.isArray(row.sets) ? row.sets.length : 0;
+        return sum + rowSets;
+      }, 0);
+
+      const { data: createdWorkout, error: createdWorkoutError } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: session.user.id,
+          name: workout.name,
+          started_at: new Date().toISOString(),
+          total_sets: totalPlannedSets,
+          total_volume_kg: 0,
+          duration_seconds: null,
+          finished_at: null,
+        })
+        .select('id, name')
+        .single();
+
+      if (createdWorkoutError || !createdWorkout) {
+        throw new Error(createdWorkoutError?.message ?? 'Failed to create workout session');
+      }
+
+      for (const sourceExercise of (sourceExercises ?? []) as any[]) {
+        const { data: insertedWorkoutExercise, error: insertWorkoutExerciseError } = await supabase
+          .from('workout_exercise')
+          .insert({
+            workout_id: createdWorkout.id,
+            exercise_id: sourceExercise.exercise_id,
+            position: sourceExercise.position,
+            rest_timer_seconds: sourceExercise.rest_timer_seconds ?? 90,
+          })
+          .select('id')
+          .single();
+
+        if (insertWorkoutExerciseError || !insertedWorkoutExercise) {
+          throw new Error(insertWorkoutExerciseError?.message ?? 'Failed to copy workout exercise');
+        }
+
+        const sourceSets = Array.isArray(sourceExercise.sets) ? [...sourceExercise.sets] : [];
+        sourceSets.sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0));
+
+        if (sourceSets.length > 0) {
+          const copiedSets = sourceSets.map((setRow: any, index: number) => ({
+            workout_exercise_id: insertedWorkoutExercise.id,
+            position: Number(setRow.position ?? index + 1),
+            weight_kg: Number(setRow.weight_kg ?? 0),
+            reps: Number(setRow.reps ?? 0),
+            completed: false,
+          }));
+
+          const { error: insertSetsError } = await supabase.from('sets').insert(copiedSets);
+
+          if (insertSetsError) {
+            throw new Error(insertSetsError.message);
+          }
+        }
+      }
+
+      const target = `/current-workout?workoutId=${encodeURIComponent(createdWorkout.id)}&workoutName=${encodeURIComponent(createdWorkout.name)}`;
+      router.push(target as Href);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start workout';
+      Alert.alert('Start failed', message);
+    } finally {
+      setStartingWorkoutId(null);
+    }
   };
 
   const goToEditWorkout = (workout: Workout) => {
@@ -238,9 +322,12 @@ export default function WorkoutsScreen() {
 
                 <Pressable
                   onPress={() => goToCurrentWorkout(workout)}
+                  disabled={startingWorkoutId === workout.id}
                   className="mt-3 self-start rounded-lg border border-emerald-500 px-3 py-2"
                 >
-                  <Text className="text-sm font-semibold text-emerald-300">Starten</Text>
+                  <Text className="text-sm font-semibold text-emerald-300">
+                    {startingWorkoutId === workout.id ? 'Starting...' : 'Starten'}
+                  </Text>
                 </Pressable>
               </View>
             ))}

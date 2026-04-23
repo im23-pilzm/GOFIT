@@ -26,6 +26,18 @@ type Exercise = {
   exercise_muscles: ExerciseMuscle[];
 };
 
+type SupabaseExerciseRow = {
+  id: string;
+  name: string;
+  equipment: Equipment[] | Equipment | null;
+  exercise_muscles:
+    | {
+        role: string;
+        muscle_group: MuscleGroup[] | MuscleGroup | null;
+      }[]
+    | null;
+};
+
 type Params = {
   selectedIds?: string;
   draft?: string;
@@ -61,7 +73,19 @@ export default function ExerciseSelectScreen() {
       setExercises([]);
       setErrorMessage(error.message);
     } else {
-      setExercises((data ?? []) as Exercise[]);
+      const normalizedExercises = ((data ?? []) as SupabaseExerciseRow[]).map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        equipment: Array.isArray(exercise.equipment) ? exercise.equipment[0] ?? null : exercise.equipment,
+        exercise_muscles: (exercise.exercise_muscles ?? []).map((exerciseMuscle) => ({
+          role: exerciseMuscle.role,
+          muscle_group: Array.isArray(exerciseMuscle.muscle_group)
+            ? exerciseMuscle.muscle_group[0] ?? { name: 'Unknown' }
+            : exerciseMuscle.muscle_group ?? { name: 'Unknown' },
+        })),
+      }));
+
+      setExercises(normalizedExercises);
     }
 
     setLoading(false);

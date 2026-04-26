@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, View } from 'react-native';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const ICONS: Record<string, number> = {
   home: require('../../assets/icons/home.png'),
@@ -139,6 +140,11 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
+  const { language } = useLanguage();
+  const homeTitle = language === 'de-CH' ? 'Start' : 'Home';
+  const workoutsTitle = language === 'de-CH' ? 'Workouts' : 'Workouts';
+  const profileTitle = language === 'de-CH' ? 'Profil' : 'Profile';
+
   return (
     <Tabs
       initialRouteName="home"
@@ -151,13 +157,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
+          title: homeTitle,
         }}
       />
       <Tabs.Screen
         name="workouts"
         options={{
-          title: 'Workouts',
+          title: workoutsTitle,
         }}
       />
       <Tabs.Screen
@@ -169,7 +175,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: profileTitle,
         }}
       />
     </Tabs>

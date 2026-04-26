@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type Equipment = {
@@ -20,6 +21,25 @@ export default function EquipmentSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
+  const { language } = useLanguage();
+
+  const copy = language === 'de-CH'
+    ? {
+        goBack: 'Zurück',
+        title: 'Gerät auswählen',
+        search: 'Suche',
+        searchPlaceholder: 'Gerät suchen',
+        loadFailed: 'Geräte konnten nicht geladen werden:',
+        noResults: 'Keine Geräte gefunden.',
+      }
+    : {
+        goBack: 'Go Back',
+        title: 'Select Equipment',
+        search: 'Search',
+        searchPlaceholder: 'Search equipment',
+        loadFailed: 'Failed to load equipment:',
+        noResults: 'No equipment found.',
+      };
 
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -88,17 +108,17 @@ export default function EquipmentSelectScreen() {
       >
         <View className="gap-3">
           <Pressable onPress={goBack} className="h-10 w-[110px] items-center justify-center rounded-full border border-slate-700">
-            <Text className="text-sm font-semibold text-slate-300">Go Back</Text>
+            <Text className="text-sm font-semibold text-slate-300">{copy.goBack}</Text>
           </Pressable>
 
-          <Text className="text-3xl font-extrabold text-white">Select Equipment</Text>
+          <Text className="text-3xl font-extrabold text-white">{copy.title}</Text>
 
           <View className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Search</Text>
+            <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.search}</Text>
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search equipment"
+              placeholder={copy.searchPlaceholder}
               placeholderTextColor="#94a3b8"
               autoCapitalize="none"
               autoCorrect={false}
@@ -115,13 +135,13 @@ export default function EquipmentSelectScreen() {
 
         {!loading && errorMessage ? (
           <View className="mt-4 rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
-            <Text className="text-sm text-rose-200">Failed to load equipment: {errorMessage}</Text>
+            <Text className="text-sm text-rose-200">{copy.loadFailed} {errorMessage}</Text>
           </View>
         ) : null}
 
         {!loading && filteredEquipment.length === 0 ? (
           <View className="mt-5 rounded-xl border border-dashed border-slate-700 p-4">
-            <Text className="text-slate-400">No equipment found.</Text>
+            <Text className="text-slate-400">{copy.noResults}</Text>
           </View>
         ) : null}
 

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type Workout = {
@@ -24,6 +25,61 @@ export default function WorkoutsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
+  const { language } = useLanguage();
+
+  const copy = language === 'de-CH'
+    ? {
+        notSigned: 'Nicht angemeldet',
+        loginAgain: 'Bitte melde dich erneut an.',
+        createSessionFailed: 'Workout-Session konnte nicht erstellt werden',
+        copyExerciseFailed: 'Workout-Übung konnte nicht kopiert werden',
+        startFailed: 'Start fehlgeschlagen',
+        startFailedBody: 'Workout konnte nicht gestartet werden',
+        deleteWorkoutTitle: 'Workout löschen',
+        deleteWorkoutQuestion: 'Löschen',
+        cancel: 'Abbrechen',
+        delete: 'Löschen',
+        deleteFailed: 'Löschen fehlgeschlagen',
+        deleteFailedBody: 'Workout konnte nicht gelöscht werden',
+        title: 'Workouts',
+        subtitle: 'Plane einen neuen Workout oder starte einen bestehenden.',
+        addWorkout: 'Workout hinzufügen',
+        existing: 'Vorhandene Workouts',
+        existingHint: 'Tippe auf Starten, um einen Workout direkt zu beginnen.',
+        none: 'Noch keine Workouts vorhanden.',
+        editWorkout: 'Workout bearbeiten',
+        deleteWorkout: 'Workout löschen',
+        deleting: 'Löscht...',
+        lastDone: 'Zuletzt:',
+        starting: 'Startet...',
+        start: 'Starten',
+      }
+    : {
+        notSigned: 'Not signed in',
+        loginAgain: 'Please log in again.',
+        createSessionFailed: 'Failed to create workout session',
+        copyExerciseFailed: 'Failed to copy workout exercise',
+        startFailed: 'Start failed',
+        startFailedBody: 'Failed to start workout',
+        deleteWorkoutTitle: 'Delete workout',
+        deleteWorkoutQuestion: 'Delete',
+        cancel: 'Cancel',
+        delete: 'Delete',
+        deleteFailed: 'Delete failed',
+        deleteFailedBody: 'Failed to delete workout',
+        title: 'Workouts',
+        subtitle: 'Plan a new workout or start an existing one.',
+        addWorkout: 'Add Workout',
+        existing: 'Existing Workouts',
+        existingHint: 'Tap start to begin a workout immediately.',
+        none: 'No workouts yet.',
+        editWorkout: 'Edit workout',
+        deleteWorkout: 'Delete workout',
+        deleting: 'Deleting...',
+        lastDone: 'Last done:',
+        starting: 'Starting...',
+        start: 'Start',
+      };
   const [loading, setLoading] = useState(false);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
@@ -77,7 +133,7 @@ export default function WorkoutsScreen() {
 
   const goToCurrentWorkout = async (workout: Workout) => {
     if (!session?.user?.id) {
-      Alert.alert('Not signed in', 'Please log in again.');
+      Alert.alert(copy.notSigned, copy.loginAgain);
       return;
     }
 
@@ -114,7 +170,7 @@ export default function WorkoutsScreen() {
         .single();
 
       if (createdWorkoutError || !createdWorkout) {
-        throw new Error(createdWorkoutError?.message ?? 'Failed to create workout session');
+        throw new Error(createdWorkoutError?.message ?? copy.createSessionFailed);
       }
 
       for (const sourceExercise of (sourceExercises ?? []) as any[]) {
@@ -130,7 +186,7 @@ export default function WorkoutsScreen() {
           .single();
 
         if (insertWorkoutExerciseError || !insertedWorkoutExercise) {
-          throw new Error(insertWorkoutExerciseError?.message ?? 'Failed to copy workout exercise');
+          throw new Error(insertWorkoutExerciseError?.message ?? copy.copyExerciseFailed);
         }
 
         const sourceSets = Array.isArray(sourceExercise.sets) ? [...sourceExercise.sets] : [];
@@ -156,8 +212,8 @@ export default function WorkoutsScreen() {
       const target = `/current-workout?workoutId=${encodeURIComponent(createdWorkout.id)}&workoutName=${encodeURIComponent(createdWorkout.name)}`;
       router.push(target as Href);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to start workout';
-      Alert.alert('Start failed', message);
+      const message = error instanceof Error ? error.message : copy.startFailedBody;
+      Alert.alert(copy.startFailed, message);
     } finally {
       setStartingWorkoutId(null);
     }
@@ -171,13 +227,13 @@ export default function WorkoutsScreen() {
   const deleteWorkout = (workout: Workout) => {
     setOpenMenuWorkoutId(null);
 
-    Alert.alert('Delete workout', `Delete "${workout.name}"?`, [
+    Alert.alert(copy.deleteWorkoutTitle, `${copy.deleteWorkoutQuestion} "${workout.name}"?`, [
       {
-        text: 'Cancel',
+        text: copy.cancel,
         style: 'cancel',
       },
       {
-        text: 'Delete',
+        text: copy.delete,
         style: 'destructive',
         onPress: async () => {
           setDeletingWorkoutId(workout.id);
@@ -226,8 +282,8 @@ export default function WorkoutsScreen() {
 
             setWorkouts((previous) => previous.filter((entry) => entry.id !== workout.id));
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to delete workout';
-            Alert.alert('Delete failed', message);
+            const message = error instanceof Error ? error.message : copy.deleteFailedBody;
+            Alert.alert(copy.deleteFailed, message);
           } finally {
             setDeletingWorkoutId(null);
           }
@@ -243,20 +299,20 @@ export default function WorkoutsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text className="text-3xl font-extrabold text-white">Workouts</Text>
-        <Text className="mt-2 text-slate-300">Plane einen neuen Workout oder starte einen bestehenden.</Text>
+        <Text className="text-3xl font-extrabold text-white">{copy.title}</Text>
+        <Text className="mt-2 text-slate-300">{copy.subtitle}</Text>
 
         <TouchableOpacity
           onPress={goToCreateWorkout}
           className="mt-5 rounded-2xl bg-sky-500 px-5 py-4"
           activeOpacity={0.9}
         >
-          <Text className="text-center text-base font-extrabold text-sky-950">Workout hinzufügen</Text>
+          <Text className="text-center text-base font-extrabold text-sky-950">{copy.addWorkout}</Text>
         </TouchableOpacity>
 
         <View className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <Text className="text-lg font-bold text-white">Vorhandene Workouts</Text>
-          <Text className="mt-1 text-slate-400">Tippe auf Starten, um einen Workout direkt zu beginnen.</Text>
+          <Text className="text-lg font-bold text-white">{copy.existing}</Text>
+          <Text className="mt-1 text-slate-400">{copy.existingHint}</Text>
 
           {loading ? (
             <View className="py-10">
@@ -265,7 +321,7 @@ export default function WorkoutsScreen() {
           ) : null}
 
           {!loading && uniqueWorkouts.length === 0 ? (
-            <Text className="mt-4 text-slate-400">Noch keine Workouts vorhanden.</Text>
+            <Text className="mt-4 text-slate-400">{copy.none}</Text>
           ) : null}
 
           {!loading &&
@@ -300,7 +356,7 @@ export default function WorkoutsScreen() {
                         }}
                         className="rounded-lg px-3 py-2 active:bg-slate-800"
                       >
-                        <Text className="text-sm font-medium text-slate-200">Edit workout</Text>
+                        <Text className="text-sm font-medium text-slate-200">{copy.editWorkout}</Text>
                       </Pressable>
 
                       <View className="my-1 h-px bg-slate-700" />
@@ -311,14 +367,14 @@ export default function WorkoutsScreen() {
                         className="rounded-lg px-3 py-2 active:bg-slate-800"
                       >
                         <Text className="text-sm font-medium text-rose-300">
-                          {deletingWorkoutId === workout.id ? 'Deleting...' : 'Delete workout'}
+                          {deletingWorkoutId === workout.id ? copy.deleting : copy.deleteWorkout}
                         </Text>
                       </Pressable>
                     </View>
                   ) : null}
                 </View>
 
-                <Text className="mt-1 text-xs text-slate-400">Zuletzt: {formatLastDone(workout.started_at)}</Text>
+                <Text className="mt-1 text-xs text-slate-400">{copy.lastDone} {formatLastDone(workout.started_at)}</Text>
 
                 <Pressable
                   onPress={() => goToCurrentWorkout(workout)}
@@ -326,7 +382,7 @@ export default function WorkoutsScreen() {
                   className="mt-3 self-start rounded-lg border border-emerald-500 px-3 py-2"
                 >
                   <Text className="text-sm font-semibold text-emerald-300">
-                    {startingWorkoutId === workout.id ? 'Starting...' : 'Starten'}
+                    {startingWorkoutId === workout.id ? copy.starting : copy.start}
                   </Text>
                 </Pressable>
               </View>

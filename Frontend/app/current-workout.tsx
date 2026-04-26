@@ -14,6 +14,7 @@ import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type Params = {
@@ -123,10 +124,105 @@ export default function CurrentWorkoutScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
+  const { language } = useLanguage();
   const params = useLocalSearchParams<Params>();
 
+  const copy = language === 'de-CH'
+    ? {
+        workout: 'Workout',
+        loadFailed: 'Laden fehlgeschlagen',
+        workoutNotFound: 'Workout nicht gefunden.',
+        addSetFailed: 'Satz hinzufügen fehlgeschlagen',
+        addSetFailedBody: 'Satz konnte nicht hinzugefügt werden',
+        deleteSetTitle: 'Satz löschen',
+        deleteSetQuestion: 'Diesen Satz aus dem Workout löschen?',
+        cancel: 'Abbrechen',
+        delete: 'Löschen',
+        deleteSetFailed: 'Satz löschen fehlgeschlagen',
+        deleteSetFailedBody: 'Satz konnte nicht gelöscht werden',
+        notSigned: 'Nicht angemeldet',
+        loginAgain: 'Bitte melde dich erneut an.',
+        noExercises: 'Keine Übungen',
+        workoutHasNoExercises: 'Dieser Workout hat keine Übungen.',
+        workoutFinished: 'Workout beendet',
+        workoutSaved: 'Dein Workout wurde erfolgreich gespeichert.',
+        saved: 'Gespeichert',
+        progressSaved: 'Dein Fortschritt wurde gespeichert.',
+        saveFailed: 'Speichern fehlgeschlagen',
+        saveWorkoutFailed: 'Workout konnte nicht gespeichert werden',
+        deleteCurrentWorkout: 'Aktuellen Workout löschen',
+        deleteCurrentWorkoutQuestionPrefix: 'Aktuelle Workout-Session für',
+        deleteCurrentWorkoutQuestionSuffix: 'löschen?',
+        deleteFailed: 'Löschen fehlgeschlagen',
+        deleteCurrentWorkoutFailed: 'Aktuelle Workout-Session konnte nicht gelöscht werden',
+        liveLogging: 'Live Workout-Tracking',
+        info: 'Information',
+        loading: 'Workout wird geladen...',
+        time: 'Zeit:',
+        setsDone: 'Sätze erledigt:',
+        volume: 'Volumen:',
+        noExerciseInWorkout: 'Keine Übungen in diesem Workout gefunden.',
+        exercise: 'Übung',
+        pauseTimer: 'Pausen-Timer',
+        set: 'Satz',
+        weight: 'Gewicht (kg)',
+        reps: 'Wiederholungen',
+        addSet: 'Neuen Satz hinzufügen',
+        saving: 'Speichert...',
+        finishWorkout: 'Workout beenden',
+        deleting: 'Löscht...',
+        deleteCurrentWorkoutButton: 'Aktuellen Workout löschen',
+        restTimer: 'Pausen-Timer',
+      }
+    : {
+        workout: 'Workout',
+        loadFailed: 'Load failed',
+        workoutNotFound: 'Workout not found.',
+        addSetFailed: 'Add set failed',
+        addSetFailedBody: 'Failed to add set',
+        deleteSetTitle: 'Delete set',
+        deleteSetQuestion: 'Delete this set from the workout?',
+        cancel: 'Cancel',
+        delete: 'Delete',
+        deleteSetFailed: 'Delete set failed',
+        deleteSetFailedBody: 'Failed to delete set',
+        notSigned: 'Not signed in',
+        loginAgain: 'Please log in again.',
+        noExercises: 'No exercises',
+        workoutHasNoExercises: 'This workout has no exercises.',
+        workoutFinished: 'Workout finished',
+        workoutSaved: 'Your workout was saved successfully.',
+        saved: 'Saved',
+        progressSaved: 'Your workout progress has been saved.',
+        saveFailed: 'Save failed',
+        saveWorkoutFailed: 'Failed to save workout',
+        deleteCurrentWorkout: 'Delete current workout',
+        deleteCurrentWorkoutQuestionPrefix: 'Delete the current workout session for',
+        deleteCurrentWorkoutQuestionSuffix: '?',
+        deleteFailed: 'Delete failed',
+        deleteCurrentWorkoutFailed: 'Failed to delete current workout session',
+        liveLogging: 'Live workout logging',
+        info: 'Information',
+        loading: 'Loading workout...',
+        time: 'Time:',
+        setsDone: 'Sets done:',
+        volume: 'Volume:',
+        noExerciseInWorkout: 'No exercises found in this workout.',
+        exercise: 'Exercise',
+        pauseTimer: 'Pause Timer',
+        set: 'Set',
+        weight: 'Weight (kg)',
+        reps: 'Reps',
+        addSet: 'Add New Set',
+        saving: 'Saving...',
+        finishWorkout: 'Finish Workout',
+        deleting: 'Deleting...',
+        deleteCurrentWorkoutButton: 'Delete Current Workout',
+        restTimer: 'Rest Timer',
+      };
+
   const workoutId = typeof params.workoutId === 'string' ? params.workoutId : '';
-  const fallbackWorkoutName = typeof params.workoutName === 'string' ? params.workoutName : 'Workout';
+  const fallbackWorkoutName = typeof params.workoutName === 'string' ? params.workoutName : copy.workout;
 
   const [workoutName, setWorkoutName] = useState(fallbackWorkoutName);
   const [startedAtIso, setStartedAtIso] = useState<string>(new Date().toISOString());
@@ -234,7 +330,7 @@ export default function CurrentWorkoutScreen() {
 
       if (workoutError || !workout) {
         setLoading(false);
-        Alert.alert('Load failed', workoutError?.message ?? 'Workout not found.');
+        Alert.alert(copy.loadFailed, workoutError?.message ?? copy.workoutNotFound);
         return;
       }
 
@@ -246,7 +342,7 @@ export default function CurrentWorkoutScreen() {
 
       if (workoutExerciseError) {
         setLoading(false);
-        Alert.alert('Load failed', workoutExerciseError.message);
+        Alert.alert(copy.loadFailed, workoutExerciseError.message);
         return;
       }
 
@@ -386,7 +482,7 @@ export default function CurrentWorkoutScreen() {
         .single();
 
       if (insertError || !insertedSet) {
-        throw new Error(insertError?.message ?? 'Failed to add set');
+        throw new Error(insertError?.message ?? copy.addSetFailedBody);
       }
 
       setExercises((previous) =>
@@ -411,8 +507,8 @@ export default function CurrentWorkoutScreen() {
         })
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add set';
-      Alert.alert('Add set failed', message);
+      const message = error instanceof Error ? error.message : copy.addSetFailedBody;
+      Alert.alert(copy.addSetFailed, message);
     } finally {
       setMutatingSets(false);
     }
@@ -423,13 +519,13 @@ export default function CurrentWorkoutScreen() {
       return;
     }
 
-    Alert.alert('Delete set', 'Delete this set from the workout?', [
+    Alert.alert(copy.deleteSetTitle, copy.deleteSetQuestion, [
       {
-        text: 'Cancel',
+        text: copy.cancel,
         style: 'cancel',
       },
       {
-        text: 'Delete',
+        text: copy.delete,
         style: 'destructive',
         onPress: async () => {
           setMutatingSets(true);
@@ -493,8 +589,8 @@ export default function CurrentWorkoutScreen() {
 
             setEditingCell((current) => (current?.setId === setId ? null : current));
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to delete set';
-            Alert.alert('Delete set failed', message);
+            const message = error instanceof Error ? error.message : copy.deleteSetFailedBody;
+            Alert.alert(copy.deleteSetFailed, message);
           } finally {
             setMutatingSets(false);
           }
@@ -505,12 +601,12 @@ export default function CurrentWorkoutScreen() {
 
   const saveAllChanges = async (markAsFinished: boolean) => {
     if (!session?.user?.id || !workoutId) {
-      Alert.alert('Not signed in', 'Please log in again.');
+      Alert.alert(copy.notSigned, copy.loginAgain);
       return;
     }
 
     if (exercises.length === 0) {
-      Alert.alert('No exercises', 'This workout has no exercises.');
+      Alert.alert(copy.noExercises, copy.workoutHasNoExercises);
       return;
     }
 
@@ -569,14 +665,14 @@ export default function CurrentWorkoutScreen() {
       }
 
       if (markAsFinished) {
-        Alert.alert('Workout finished', 'Your workout was saved successfully.');
+        Alert.alert(copy.workoutFinished, copy.workoutSaved);
         router.replace('/(tabs)/workouts' as Href);
       } else {
-        Alert.alert('Saved', 'Your workout progress has been saved.');
+        Alert.alert(copy.saved, copy.progressSaved);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save workout';
-      Alert.alert('Save failed', message);
+      const message = error instanceof Error ? error.message : copy.saveWorkoutFailed;
+      Alert.alert(copy.saveFailed, message);
     } finally {
       setSaving(false);
     }
@@ -587,13 +683,13 @@ export default function CurrentWorkoutScreen() {
       return;
     }
 
-    Alert.alert('Delete current workout', `Delete the current workout session for "${workoutName}"?`, [
+    Alert.alert(copy.deleteCurrentWorkout, `${copy.deleteCurrentWorkoutQuestionPrefix} "${workoutName}" ${copy.deleteCurrentWorkoutQuestionSuffix}`, [
       {
-        text: 'Cancel',
+        text: copy.cancel,
         style: 'cancel',
       },
       {
-        text: 'Delete',
+        text: copy.delete,
         style: 'destructive',
         onPress: async () => {
           setDeleting(true);
@@ -641,8 +737,8 @@ export default function CurrentWorkoutScreen() {
 
             router.replace('/(tabs)/workouts' as Href);
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to delete current workout session';
-            Alert.alert('Delete failed', message);
+            const message = error instanceof Error ? error.message : copy.deleteCurrentWorkoutFailed;
+            Alert.alert(copy.deleteFailed, message);
           } finally {
             setDeleting(false);
           }
@@ -668,25 +764,25 @@ export default function CurrentWorkoutScreen() {
           onScrollBeginDrag={() => setOpenPausePickerExerciseId(null)}
         >
           <Text className="text-3xl font-extrabold text-white">{workoutName}</Text>
-          <Text className="mt-2 text-slate-300">Live workout logging</Text>
+          <Text className="mt-2 text-slate-300">{copy.liveLogging}</Text>
 
           <View className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <Text className="text-sm font-semibold uppercase tracking-wide text-slate-300">Information</Text>
+            <Text className="text-sm font-semibold uppercase tracking-wide text-slate-300">{copy.info}</Text>
 
             {loading ? (
-              <Text className="mt-3 text-slate-400">Loading workout...</Text>
+              <Text className="mt-3 text-slate-400">{copy.loading}</Text>
             ) : (
               <View className="mt-3 gap-2">
-                <Text className="text-base text-slate-200">Time: <Text className="font-bold text-white">{formatElapsed(elapsedSeconds)}</Text></Text>
-                <Text className="text-base text-slate-200">Sets done: <Text className="font-bold text-white">{completedSets}/{totalSets}</Text></Text>
-                <Text className="text-base text-slate-200">Volume: <Text className="font-bold text-white">{formatVolume(totalVolume)}</Text></Text>
+                <Text className="text-base text-slate-200">{copy.time} <Text className="font-bold text-white">{formatElapsed(elapsedSeconds)}</Text></Text>
+                <Text className="text-base text-slate-200">{copy.setsDone} <Text className="font-bold text-white">{completedSets}/{totalSets}</Text></Text>
+                <Text className="text-base text-slate-200">{copy.volume} <Text className="font-bold text-white">{formatVolume(totalVolume)}</Text></Text>
               </View>
             )}
           </View>
 
           {!loading && exercises.length === 0 ? (
             <View className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-4">
-              <Text className="text-slate-400">No exercises found in this workout.</Text>
+              <Text className="text-slate-400">{copy.noExerciseInWorkout}</Text>
             </View>
           ) : null}
 
@@ -695,13 +791,13 @@ export default function CurrentWorkoutScreen() {
               <View key={exercise.id} className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1 pr-3">
-                    <Text className="text-xs uppercase tracking-wide text-slate-400">Exercise {index + 1}</Text>
+                    <Text className="text-xs uppercase tracking-wide text-slate-400">{copy.exercise} {index + 1}</Text>
                     <Text className="mt-1 text-lg font-bold text-white">{exercise.name}</Text>
                   </View>
                 </View>
 
                 <View className="mt-3">
-                  <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pause Timer</Text>
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.pauseTimer}</Text>
                   <Pressable
                     onPress={() =>
                       setOpenPausePickerExerciseId((current) =>
@@ -747,9 +843,9 @@ export default function CurrentWorkoutScreen() {
 
                 <View className="mt-3 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
                   <View className="flex-row border-b border-slate-800 pb-2">
-                    <Text className="w-10 text-xs font-bold uppercase text-slate-400">Set</Text>
-                    <Text className="flex-1 text-xs font-bold uppercase text-slate-400">Weight (kg)</Text>
-                    <Text className="w-16 text-xs font-bold uppercase text-slate-400">Reps</Text>
+                    <Text className="w-10 text-xs font-bold uppercase text-slate-400">{copy.set}</Text>
+                    <Text className="flex-1 text-xs font-bold uppercase text-slate-400">{copy.weight}</Text>
+                    <Text className="w-16 text-xs font-bold uppercase text-slate-400">{copy.reps}</Text>
                     <Text className="w-10 text-center text-xs font-bold uppercase text-slate-400">✓</Text>
                   </View>
 
@@ -764,7 +860,7 @@ export default function CurrentWorkoutScreen() {
                               disabled={mutatingSets || saving || deleting || loading}
                               className="h-full min-h-[38px] items-center justify-center rounded-lg bg-rose-500 px-3"
                             >
-                              <Text className="text-xs font-bold text-rose-50">Delete</Text>
+                              <Text className="text-xs font-bold text-rose-50">{copy.delete}</Text>
                             </Pressable>
                           </View>
                         )}
@@ -845,7 +941,7 @@ export default function CurrentWorkoutScreen() {
                       : 'border-emerald-500'
                   }`}
                 >
-                  <Text className="text-center text-sm font-semibold text-emerald-300">Add New Set</Text>
+                  <Text className="text-center text-sm font-semibold text-emerald-300">{copy.addSet}</Text>
                 </Pressable>
               </View>
             ))}
@@ -859,7 +955,7 @@ export default function CurrentWorkoutScreen() {
               }`}
             >
               <Text className="text-center text-sm font-extrabold text-sky-950">
-                {saving ? 'Saving...' : 'Finish Workout'}
+                {saving ? copy.saving : copy.finishWorkout}
               </Text>
             </Pressable>
 
@@ -873,7 +969,7 @@ export default function CurrentWorkoutScreen() {
               }`}
             >
               <Text className="text-center text-sm font-bold text-rose-300">
-                {deleting ? 'Deleting...' : 'Delete Current Workout'}
+                {deleting ? copy.deleting : copy.deleteCurrentWorkoutButton}
               </Text>
             </Pressable>
           </View>
@@ -886,7 +982,7 @@ export default function CurrentWorkoutScreen() {
           >
             <View className="flex-row items-center justify-between">
               <View>
-                <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Rest Timer</Text>
+                <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.restTimer}</Text>
                 <Text className="mt-0.5 text-2xl font-extrabold text-white">{formatRestCountdown(restTimerSecondsLeft)}</Text>
                 {restTimerExerciseName ? (
                   <Text className="text-xs text-slate-400">{restTimerExerciseName}</Text>

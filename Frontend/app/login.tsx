@@ -3,9 +3,35 @@ import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 
 export default function LoginScreen() {
     const { signIn } = useAuth();
+        const { language } = useLanguage();
+
+        const copy = language === 'de-CH'
+                ? {
+                        title: 'Anmelden',
+                        emailRequired: 'E-Mail und Passwort sind erforderlich.',
+                        emailInvalid: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+                        genericError: 'Ein Fehler ist aufgetreten',
+                        email: 'E-Mail',
+                        password: 'Passwort',
+                        loading: 'Lädt...',
+                        login: 'Login',
+                        createAccount: 'Konto erstellen',
+                    }
+                : {
+                        title: 'Login',
+                        emailRequired: 'Email and password are required.',
+                        emailInvalid: 'Please enter a valid email address.',
+                        genericError: 'An error occurred',
+                        email: 'Email',
+                        password: 'Password',
+                        loading: 'Loading...',
+                        login: 'Login',
+                        createAccount: 'Create an account',
+                    };
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,12 +43,12 @@ export default function LoginScreen() {
         const normalizedEmail = email.trim().toLowerCase();
 
         if (!normalizedEmail || !password) {
-            setErrorMessage('Email and password are required.');
+            setErrorMessage(copy.emailRequired);
             return;
         }
 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-            setErrorMessage('Please enter a valid email address.');
+            setErrorMessage(copy.emailInvalid);
             return;
         }
 
@@ -32,7 +58,7 @@ export default function LoginScreen() {
             await signIn(normalizedEmail, password)
             router.replace('/(tabs)/home')
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'An error occurred')
+            setErrorMessage(error instanceof Error ? error.message : copy.genericError)
         } finally {
             setIsSubmitting(false)
         }
@@ -60,11 +86,11 @@ export default function LoginScreen() {
                         <Text className="text-[28px] font-extrabold tracking-[1.2px] text-white">GOFIT</Text>
                     </View>
 
-                    <Text className="mb-2 text-[30px] font-bold text-white">Anmelden</Text>
+                    <Text className="mb-2 text-[30px] font-bold text-white">{copy.title}</Text>
 
                     <TextInput
                         className="rounded-[10px] border border-slate-600 bg-slate-800 px-3.5 py-3 text-white"
-                        placeholder="Email"
+                        placeholder={copy.email}
                         placeholderTextColor="#9ca3af"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -76,7 +102,7 @@ export default function LoginScreen() {
 
                     <TextInput
                         className="rounded-[10px] border border-slate-600 bg-slate-800 px-3.5 py-3 text-white"
-                        placeholder="Password"
+                        placeholder={copy.password}
                         placeholderTextColor="#9ca3af"
                         secureTextEntry
                         value={password}
@@ -91,11 +117,11 @@ export default function LoginScreen() {
                         disabled={isSubmitting}
                         onPress={onSubmit}
                     >
-                        <Text className="text-base font-semibold text-white">{isSubmitting ? 'Loading...' : 'Login'}</Text>
+                        <Text className="text-base font-semibold text-white">{isSubmitting ? copy.loading : copy.login}</Text>
                     </Pressable>
 
                     <Link href="/register" className="mt-1 text-center text-sky-300">
-                        Create an account
+                        {copy.createAccount}
                     </Link>
                 </View>
             </ScrollView>

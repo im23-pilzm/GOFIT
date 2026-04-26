@@ -13,7 +13,18 @@ const exerciseMetadataRoutes = require("./routes/exerciseMetadata");
 
 app.use(express.json());
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const origin = req.headers.origin;
+
+  // Allow browser clients only from the configured frontend origins.
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
+
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
 
@@ -31,6 +42,7 @@ app.use("/api/exercises", exerciseRoutes);
 app.use("/api/workouts", workoutRoutes);
 app.use("/api", exerciseMetadataRoutes);
 
+// Simple health check that also confirms the database connection works.
 app.get("/", async (req, res) => {
   try {
     const { error } = await supabase.from("equipment").select("id").limit(1);

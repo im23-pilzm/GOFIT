@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type MuscleGroup = {
@@ -42,12 +43,50 @@ type Params = {
   selectedIds?: string;
   draft?: string;
   workoutId?: string;
+  workoutName?: string;
 };
 
 export default function ExerciseSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
+  const { language } = useLanguage();
+
+  const copy = language === 'de-CH'
+    ? {
+        unknown: 'Unbekannt',
+        noEquipment: 'Kein Gerät',
+        goBack: 'Zurück',
+        title: 'Übung auswählen',
+        createExercise: 'Übung erstellen',
+        subtitle: 'Wähle eine Übung aus der Liste oder erstelle zuerst eine neue.',
+        search: 'Suche',
+        searchPlaceholder: 'Übungen suchen',
+        failedLoad: 'Übungen konnten nicht geladen werden:',
+        noResults: 'Keine Übungen gefunden.',
+        alreadySelected: 'Bereits ausgewählt',
+        tapToAdd: 'Tippen zum Hinzufügen',
+        equipment: 'Gerät:',
+        targets: 'Zielmuskeln:',
+        noMuscles: 'Keine Muskeln',
+      }
+    : {
+        unknown: 'Unknown',
+        noEquipment: 'No equipment',
+        goBack: 'Go Back',
+        title: 'Select Exercise',
+        createExercise: 'Create Exercise',
+        subtitle: 'Pick one from the list or add a new one first.',
+        search: 'Search',
+        searchPlaceholder: 'Search exercises',
+        failedLoad: 'Failed to load exercises:',
+        noResults: 'No exercises found.',
+        alreadySelected: 'Already selected',
+        tapToAdd: 'Tap to add to workout',
+        equipment: 'Equipment:',
+        targets: 'Targets:',
+        noMuscles: 'No muscles',
+      };
 
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -80,8 +119,8 @@ export default function ExerciseSelectScreen() {
         exercise_muscles: (exercise.exercise_muscles ?? []).map((exerciseMuscle) => ({
           role: exerciseMuscle.role,
           muscle_group: Array.isArray(exerciseMuscle.muscle_group)
-            ? exerciseMuscle.muscle_group[0] ?? { name: 'Unknown' }
-            : exerciseMuscle.muscle_group ?? { name: 'Unknown' },
+            ? exerciseMuscle.muscle_group[0] ?? { name: copy.unknown }
+            : exerciseMuscle.muscle_group ?? { name: copy.unknown },
         })),
       }));
 
@@ -111,9 +150,11 @@ export default function ExerciseSelectScreen() {
   const goBack = () => {
     const draftParam = typeof params.draft === 'string' ? params.draft : '';
     const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+    const workoutNameParam = typeof params.workoutName === 'string' ? params.workoutName : '';
     const target =
       `/(tabs)/createWorkout?draft=${encodeURIComponent(draftParam)}` +
-      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+      `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}`;
 
     router.replace(target as Href);
   };
@@ -121,9 +162,11 @@ export default function ExerciseSelectScreen() {
   const openCreateExercise = () => {
     const draftParam = typeof params.draft === 'string' ? params.draft : '';
     const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+    const workoutNameParam = typeof params.workoutName === 'string' ? params.workoutName : '';
     const target =
       `/create-exercise?draft=${encodeURIComponent(draftParam)}` +
-      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+      `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}`;
 
     router.push(target as Href);
   };
@@ -131,12 +174,14 @@ export default function ExerciseSelectScreen() {
   const selectExercise = (exercise: Exercise) => {
     const draftParam = typeof params.draft === 'string' ? params.draft : '';
     const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+    const workoutNameParam = typeof params.workoutName === 'string' ? params.workoutName : '';
     const target =
       `/(tabs)/createWorkout?selectedExerciseId=${encodeURIComponent(exercise.id)}` +
       `&selectedExerciseName=${encodeURIComponent(exercise.name)}` +
       `&selectedToken=${Date.now()}` +
 			`&draft=${encodeURIComponent(draftParam)}` +
-      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+      `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}`;
 
     router.navigate(target as Href);
   };
@@ -152,27 +197,27 @@ export default function ExerciseSelectScreen() {
         <View className="gap-3">
           <View className="flex-row items-center">
             <Pressable onPress={goBack} className="h-10 flex-row items-center rounded-full border border-slate-700 px-4">
-              <Text className="text-sm font-semibold text-slate-300">Go Back</Text>
+              <Text className="text-sm font-semibold text-slate-300">{copy.goBack}</Text>
             </Pressable>
           </View>
 
           <View className="flex-row items-center justify-between gap-3">
-            <Text className="flex-1 text-3xl font-extrabold text-white">Select Exercise</Text>
+            <Text className="flex-1 text-3xl font-extrabold text-white">{copy.title}</Text>
 
             <Pressable onPress={openCreateExercise} className="h-10 flex-row items-center rounded-full bg-sky-500 px-4">
-              <Text className="text-sm font-semibold text-sky-950">Create Exercise</Text>
+              <Text className="text-sm font-semibold text-sky-950">{copy.createExercise}</Text>
             </Pressable>
           </View>
 
-          <Text className="text-sm text-slate-400">Pick one from the list or add a new one first.</Text>
+          <Text className="text-sm text-slate-400">{copy.subtitle}</Text>
         </View>
 
         <View className="mt-5 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Search</Text>
+          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.search}</Text>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search exercises"
+            placeholder={copy.searchPlaceholder}
             placeholderTextColor="#94a3b8"
             autoCapitalize="none"
             autoCorrect={false}
@@ -188,13 +233,13 @@ export default function ExerciseSelectScreen() {
 
         {!loading && errorMessage ? (
           <View className="mt-4 rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
-            <Text className="text-sm text-rose-200">Failed to load exercises: {errorMessage}</Text>
+            <Text className="text-sm text-rose-200">{copy.failedLoad} {errorMessage}</Text>
           </View>
         ) : null}
 
         {!loading && filteredExercises.length === 0 ? (
           <View className="mt-5 rounded-xl border border-dashed border-slate-700 p-4">
-            <Text className="text-slate-400">No exercises found.</Text>
+            <Text className="text-slate-400">{copy.noResults}</Text>
           </View>
         ) : null}
 
@@ -208,7 +253,7 @@ export default function ExerciseSelectScreen() {
               .filter((em) => em.role === 'secondary')
               .map((em) => em.muscle_group.name);
             const allMuscles = [...primaryMuscles, ...secondaryMuscles];
-            const equipmentName = exercise.equipment?.name || 'No equipment';
+            const equipmentName = exercise.equipment?.name || copy.noEquipment;
 
             return (
               <Pressable
@@ -221,14 +266,14 @@ export default function ExerciseSelectScreen() {
                   {exercise.name}
                 </Text>
                 <Text className={`mt-1 text-xs ${disabled ? 'text-slate-600' : 'text-slate-400'}`}>
-                  {disabled ? 'Already selected' : 'Tap to add to workout'}
+                  {disabled ? copy.alreadySelected : copy.tapToAdd}
                 </Text>
                 <View className="mt-2 flex-col gap-1">
                   <Text className={`text-xs ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
-                    <Text className="font-semibold">Equipment:</Text> {equipmentName}
+                    <Text className="font-semibold">{copy.equipment}</Text> {equipmentName}
                   </Text>
                   <Text className={`text-xs ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
-                    <Text className="font-semibold">Targets:</Text> {allMuscles.length > 0 ? allMuscles.join(', ') : 'No muscles'}
+                    <Text className="font-semibold">{copy.targets}</Text> {allMuscles.length > 0 ? allMuscles.join(', ') : copy.noMuscles}
                   </Text>
                 </View>
               </Pressable>

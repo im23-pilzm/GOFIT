@@ -15,6 +15,7 @@ const loginSchema = Joi.object({
   password: Joi.string().min(1).required(),
 });
 
+// Reduce the Supabase session object to only the fields the frontend needs.
 const toSessionPayload = (session) => {
   if (!session) {
     return null;
@@ -28,6 +29,7 @@ const toSessionPayload = (session) => {
   };
 };
 
+// Return a minimal user payload so the API does not leak extra auth fields.
 const toUserPayload = (user) => {
   if (!user) {
     return null;
@@ -37,6 +39,22 @@ const toUserPayload = (user) => {
     id: user.id,
     email: user.email,
   };
+};
+
+// Validate the bearer token and attach the authenticated user to the request.
+const auth = async (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.status(401).json({ message: "No token" });
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+
+  req.user = data.user;
+  next();
 };
 
 router.post("/register", async (req, res) => {

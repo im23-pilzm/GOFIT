@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { apiRequest } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
@@ -103,6 +104,7 @@ function formatNumber(value: number) {
 
 export default function HomeScreen() {
   const { session } = useAuth();
+  const { language } = useLanguage();
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -152,6 +154,98 @@ export default function HomeScreen() {
   }, [scheduledWorkouts]);
 
   const selectedDayEntries = selectedDateKey ? scheduleByDay[selectedDateKey] ?? [] : [];
+
+  const copy = language === 'de-CH'
+    ? {
+        workoutsNotLoaded: 'Workouts konnten nicht geladen werden',
+        calendarNotLoaded: 'Kalender konnte nicht geladen werden',
+        unknownError: 'Unbekannter Fehler',
+        notSigned: 'Nicht angemeldet',
+        signInFirst: 'Bitte zuerst anmelden.',
+        noWorkoutsAvailable: 'Keine Workouts verfügbar',
+        completeFirst: 'Schliesse zuerst einen Workout ab und plane ihn dann im Kalender.',
+        chooseDay: 'Tag auswählen',
+        selectDayFirst: 'Wähle zuerst einen Kalendertag.',
+        chooseWorkout: 'Workout auswählen',
+        chooseWorkoutBody: 'Wähle einen deiner Workouts zum Einplanen aus.',
+        workoutMissing: 'Workout fehlt',
+        chooseValidWorkout: 'Bitte wähle einen gültigen Workout.',
+        invalidTime: 'Ungültige Zeit',
+        invalidTimeBody: 'Verwende HH:MM, z.B. 18:30.',
+        saved: 'Gespeichert',
+        addedCalendar: 'Workout wurde deinem Kalender hinzugefügt.',
+        couldNotSave: 'Speichern nicht möglich',
+        calendar: 'Kalender',
+        tapToOpen: 'Tippen zum Öffnen und Planen von Workouts',
+        noUpcoming: 'Keine bevorstehenden Workouts geplant.',
+        stats: 'Statistik',
+        statsSubtitle: 'Schneller Überblick über Trainingsvolumen und Muskelabdeckung.',
+        totalWorkouts: 'Gesamte Workouts',
+        totalVolume: 'Gesamtvolumen',
+        totalSets: 'Gesamte Sätze',
+        avgDuration: 'Ø Dauer',
+        min: 'Min',
+        mostMuscles: 'Am häufigsten trainierte Muskeln',
+        noMuscleData: 'Noch keine Muskel-Daten. Sobald Workouts Übungen enthalten, siehst du hier deine Top-Muskelgruppen.',
+        exercisesCount: 'Übungen',
+        workoutCalendar: 'Workout-Kalender',
+        close: 'Schliessen',
+        loadingCalendarData: 'Kalenderdaten werden geladen...',
+        selectedDayWorkouts: 'Workouts am ausgewählten Tag',
+        noDayWorkouts: 'Keine Workouts für diesen Tag geplant.',
+        addWorkoutToDay: 'Workout zum ausgewählten Tag hinzufügen',
+        optionalTime: 'Optionale Zeit (HH:MM)',
+        chooseWorkoutLabel: 'Workout wählen',
+        noWorkoutsYet: 'Du hast noch keine Workouts. Schliesse zuerst einen Workout ab und plane ihn dann hier ein.',
+        lastDone: 'Zuletzt erledigt',
+        saving: 'Speichert...',
+        addWorkout: 'Workout hinzufügen',
+      }
+    : {
+        workoutsNotLoaded: 'Workouts not loaded',
+        calendarNotLoaded: 'Calendar not loaded',
+        unknownError: 'Unknown error',
+        notSigned: 'Not signed in',
+        signInFirst: 'Please sign in first.',
+        noWorkoutsAvailable: 'No workouts available',
+        completeFirst: 'Complete a workout first, then schedule it in the calendar.',
+        chooseDay: 'Choose a day',
+        selectDayFirst: 'Select a calendar day first.',
+        chooseWorkout: 'Choose a workout',
+        chooseWorkoutBody: 'Select one of your workouts to schedule.',
+        workoutMissing: 'Workout missing',
+        chooseValidWorkout: 'Please choose a valid workout.',
+        invalidTime: 'Invalid time',
+        invalidTimeBody: 'Use HH:MM, for example 18:30.',
+        saved: 'Saved',
+        addedCalendar: 'Workout added to your calendar.',
+        couldNotSave: 'Could not save',
+        calendar: 'Calendar',
+        tapToOpen: 'Tap to open and schedule workouts',
+        noUpcoming: 'No upcoming workouts scheduled.',
+        stats: 'Statistics',
+        statsSubtitle: 'A quick look at your training volume and muscle coverage.',
+        totalWorkouts: 'Total workouts',
+        totalVolume: 'Total volume',
+        totalSets: 'Total sets',
+        avgDuration: 'Avg duration',
+        min: 'min',
+        mostMuscles: 'Muscles trained most',
+        noMuscleData: 'No muscle data yet. Once workouts include exercises, this will show your top trained muscle groups.',
+        exercisesCount: 'exercises',
+        workoutCalendar: 'Workout Calendar',
+        close: 'Close',
+        loadingCalendarData: 'Loading calendar data...',
+        selectedDayWorkouts: 'Selected day workouts',
+        noDayWorkouts: 'No workouts scheduled for this day.',
+        addWorkoutToDay: 'Add workout to selected day',
+        optionalTime: 'Optional time (HH:MM)',
+        chooseWorkoutLabel: 'Choose workout',
+        noWorkoutsYet: 'You do not have workouts yet. Complete a workout first, then schedule it here.',
+        lastDone: 'Last done',
+        saving: 'Saving...',
+        addWorkout: 'Add Workout',
+      };
 
   useEffect(() => {
     // Keep a valid default selection so users can add quickly from the calendar modal.
@@ -226,7 +320,7 @@ export default function HomeScreen() {
         .limit(40);
 
       if (workoutError) {
-        Alert.alert('Workouts not loaded', workoutError.message);
+        Alert.alert(copy.workoutsNotLoaded, workoutError.message);
       } else {
         const loadedWorkouts = (workoutData ?? []) as WorkoutRecord[];
 
@@ -284,8 +378,8 @@ export default function HomeScreen() {
         );
         setScheduledWorkouts(scheduleData ?? []);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        Alert.alert('Calendar not loaded', message);
+        const message = error instanceof Error ? error.message : copy.unknownError;
+        Alert.alert(copy.calendarNotLoaded, message);
       }
 
       setLoadingData(false);
@@ -316,35 +410,35 @@ export default function HomeScreen() {
 
   const addWorkoutToSelectedDay = async () => {
     if (!session?.user?.id || !session.access_token) {
-      Alert.alert('Not signed in', 'Please sign in first.');
+      Alert.alert(copy.notSigned, copy.signInFirst);
       return;
     }
 
     if (workouts.length === 0) {
-      Alert.alert('No workouts available', 'Complete a workout first, then schedule it in the calendar.');
+      Alert.alert(copy.noWorkoutsAvailable, copy.completeFirst);
       return;
     }
 
     if (!selectedDay) {
-      Alert.alert('Choose a day', 'Select a calendar day first.');
+      Alert.alert(copy.chooseDay, copy.selectDayFirst);
       return;
     }
 
     if (!selectedWorkoutId) {
-      Alert.alert('Choose a workout', 'Select one of your workouts to schedule.');
+      Alert.alert(copy.chooseWorkout, copy.chooseWorkoutBody);
       return;
     }
 
     const selectedWorkout = workouts.find((workout) => workout.id === selectedWorkoutId);
     if (!selectedWorkout) {
-      Alert.alert('Workout missing', 'Please choose a valid workout.');
+      Alert.alert(copy.workoutMissing, copy.chooseValidWorkout);
       return;
     }
 
     const normalizedTime = timeInput.trim() || '18:00';
     const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timePattern.test(normalizedTime)) {
-      Alert.alert('Invalid time', 'Use HH:MM, for example 18:30.');
+      Alert.alert(copy.invalidTime, copy.invalidTimeBody);
       return;
     }
 
@@ -380,10 +474,10 @@ export default function HomeScreen() {
           (a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
         );
       });
-      Alert.alert('Saved', 'Workout added to your calendar.');
+      Alert.alert(copy.saved, copy.addedCalendar);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert('Could not save', message);
+      const message = error instanceof Error ? error.message : copy.unknownError;
+      Alert.alert(copy.couldNotSave, message);
       return;
     } finally {
       setSavingSchedule(false);
@@ -409,11 +503,11 @@ export default function HomeScreen() {
           className="mb-3 rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
           style={{ height: calendarHeight }}
         >
-          <Text className="text-xl font-extrabold text-white">Kalender</Text>
-          <Text className="mt-2 text-slate-300">Tap to open and schedule workouts</Text>
+          <Text className="text-xl font-extrabold text-white">{copy.calendar}</Text>
+          <Text className="mt-2 text-slate-300">{copy.tapToOpen}</Text>
           <View className="mt-3 rounded-xl border border-slate-700 bg-slate-900/60 p-3">
             {upcomingSchedules.length === 0 ? (
-              <Text className="text-slate-400">No upcoming workouts scheduled.</Text>
+              <Text className="text-slate-400">{copy.noUpcoming}</Text>
             ) : (
               upcomingSchedules.map((entry) => (
                 <View key={entry.id} className="mb-2 last:mb-0">
@@ -429,40 +523,40 @@ export default function HomeScreen() {
           className="rounded-[18px] border border-slate-600 bg-slate-800 p-3.5"
           style={{ minHeight: statsHeight }}
         >
-          <Text className="text-xl font-extrabold text-white">Statistik</Text>
-          <Text className="mt-2 text-slate-300">A quick look at your training volume and muscle coverage.</Text>
+          <Text className="text-xl font-extrabold text-white">{copy.stats}</Text>
+          <Text className="mt-2 text-slate-300">{copy.statsSubtitle}</Text>
 
           <View className="mt-4 flex-row flex-wrap justify-between">
             <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
-              <Text className="text-xs uppercase tracking-wide text-slate-400">Total workouts</Text>
+              <Text className="text-xs uppercase tracking-wide text-slate-400">{copy.totalWorkouts}</Text>
               <Text className="mt-2 text-2xl font-extrabold text-white">{workoutStats.totalWorkouts}</Text>
             </View>
             <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
-              <Text className="text-xs uppercase tracking-wide text-slate-400">Total volume</Text>
+              <Text className="text-xs uppercase tracking-wide text-slate-400">{copy.totalVolume}</Text>
               <Text className="mt-2 text-2xl font-extrabold text-white">{formatNumber(workoutStats.totalVolumeKg)} kg</Text>
             </View>
             <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
-              <Text className="text-xs uppercase tracking-wide text-slate-400">Total sets</Text>
+              <Text className="text-xs uppercase tracking-wide text-slate-400">{copy.totalSets}</Text>
               <Text className="mt-2 text-2xl font-extrabold text-white">{formatNumber(workoutStats.totalSets)}</Text>
             </View>
             <View className="mb-3 w-[48%] rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
-              <Text className="text-xs uppercase tracking-wide text-slate-400">Avg duration</Text>
+              <Text className="text-xs uppercase tracking-wide text-slate-400">{copy.avgDuration}</Text>
               <Text className="mt-2 text-2xl font-extrabold text-white">
-                {workoutStats.averageDurationMinutes > 0 ? `${Math.round(workoutStats.averageDurationMinutes)} min` : '--'}
+                {workoutStats.averageDurationMinutes > 0 ? `${Math.round(workoutStats.averageDurationMinutes)} ${copy.min}` : '--'}
               </Text>
             </View>
           </View>
 
           <View className="mt-1 rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
-            <Text className="text-base font-bold text-white">Muscles trained most</Text>
+            <Text className="text-base font-bold text-white">{copy.mostMuscles}</Text>
             {workoutStats.mostTrainedMuscles.length === 0 ? (
-              <Text className="mt-2 text-slate-400">No muscle data yet. Once workouts include exercises, this will show your top trained muscle groups.</Text>
+              <Text className="mt-2 text-slate-400">{copy.noMuscleData}</Text>
             ) : (
               <View className="mt-3 gap-2">
                 {workoutStats.mostTrainedMuscles.map((muscle) => (
                   <View key={muscle.name} className="flex-row items-center justify-between rounded-xl bg-slate-800 px-3 py-2">
                     <Text className="font-semibold text-white">{muscle.name}</Text>
-                    <Text className="text-slate-300">{muscle.count} exercises</Text>
+                    <Text className="text-slate-300">{muscle.count} {copy.exercisesCount}</Text>
                   </View>
                 ))}
               </View>
@@ -493,9 +587,9 @@ export default function HomeScreen() {
               }}
             >
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-xl font-extrabold text-white">Workout Calendar</Text>
+              <Text className="text-xl font-extrabold text-white">{copy.workoutCalendar}</Text>
               <TouchableOpacity onPress={closeCalendar} className="rounded-lg bg-slate-800 px-3 py-2">
-                <Text className="font-semibold text-white">Close</Text>
+                <Text className="font-semibold text-white">{copy.close}</Text>
               </TouchableOpacity>
             </View>
 
@@ -512,7 +606,7 @@ export default function HomeScreen() {
             {loadingData ? (
               <View className="items-center py-8">
                 <ActivityIndicator color="#94a3b8" />
-                <Text className="mt-2 text-slate-300">Loading calendar data...</Text>
+                <Text className="mt-2 text-slate-300">{copy.loadingCalendarData}</Text>
               </View>
             ) : (
               <ScrollView
@@ -559,9 +653,9 @@ export default function HomeScreen() {
                 </View>
 
                 <View className="mb-3 rounded-xl border border-slate-700 bg-slate-800 p-3">
-                  <Text className="mb-2 text-base font-bold text-white">Selected day workouts</Text>
+                  <Text className="mb-2 text-base font-bold text-white">{copy.selectedDayWorkouts}</Text>
                   {selectedDayEntries.length === 0 ? (
-                    <Text className="text-slate-400">No workouts scheduled for this day.</Text>
+                    <Text className="text-slate-400">{copy.noDayWorkouts}</Text>
                   ) : (
                     selectedDayEntries.map((entry) => (
                       <View key={entry.id} className="mb-2 last:mb-0">
@@ -573,9 +667,9 @@ export default function HomeScreen() {
                 </View>
 
                 <View className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-                  <Text className="mb-2 text-base font-bold text-white">Add workout to selected day</Text>
+                  <Text className="mb-2 text-base font-bold text-white">{copy.addWorkoutToDay}</Text>
 
-                  <Text className="mb-1 text-sm text-slate-300">Optional time (HH:MM)</Text>
+                  <Text className="mb-1 text-sm text-slate-300">{copy.optionalTime}</Text>
                   <TextInput
                     value={timeInput}
                     onChangeText={setTimeInput}
@@ -586,10 +680,10 @@ export default function HomeScreen() {
                     autoCapitalize="none"
                   />
 
-                  <Text className="mb-2 text-sm text-slate-300">Choose workout</Text>
+                  <Text className="mb-2 text-sm text-slate-300">{copy.chooseWorkoutLabel}</Text>
                   {workouts.length === 0 ? (
                     <Text className="mb-3 text-slate-400">
-                      You do not have workouts yet. Complete a workout first, then schedule it here.
+                      {copy.noWorkoutsYet}
                     </Text>
                   ) : (
                     <View className="mb-3 max-h-44 rounded-lg border border-slate-700 bg-slate-900 p-2">
@@ -610,7 +704,7 @@ export default function HomeScreen() {
                                 {workout.name}
                               </Text>
                               <Text className="text-xs text-slate-400">
-                                Last done {new Date(workout.started_at).toLocaleDateString()}
+                                {copy.lastDone} {new Date(workout.started_at).toLocaleDateString()}
                               </Text>
                             </TouchableOpacity>
                           );
@@ -627,7 +721,7 @@ export default function HomeScreen() {
                     }`}
                   >
                     <Text className="text-center font-extrabold text-white">
-                      {savingSchedule ? 'Saving...' : 'Add Workout'}
+                      {savingSchedule ? copy.saving : copy.addWorkout}
                     </Text>
                   </TouchableOpacity>
                 </View>

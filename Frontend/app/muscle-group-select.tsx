@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type MuscleGroup = {
@@ -21,6 +22,7 @@ export default function MuscleGroupSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
+  const { language } = useLanguage();
 
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -33,6 +35,34 @@ export default function MuscleGroupSelectScreen() {
 
   const mode = typeof params.mode === 'string' ? params.mode : 'primary';
   const isOtherMode = mode === 'other';
+
+  const copy = language === 'de-CH'
+    ? {
+        goBack: 'Zurück',
+        save: 'Speichern',
+        titleOther: 'Weitere Muskelgruppen auswählen',
+        titlePrimary: 'Muskelgruppe auswählen',
+        search: 'Suche',
+        searchPlaceholder: 'Muskelgruppen suchen',
+        failedLoad: 'Muskelgruppen konnten nicht geladen werden:',
+        noResults: 'Keine Muskelgruppen gefunden.',
+        selected: 'Ausgewählt',
+        tapToggle: 'Tippen zum Umschalten',
+        tapChoose: 'Tippen zum Auswählen',
+      }
+    : {
+        goBack: 'Go Back',
+        save: 'Save',
+        titleOther: 'Select Other Muscle Groups',
+        titlePrimary: 'Select Muscle Group',
+        search: 'Search',
+        searchPlaceholder: 'Search muscle groups',
+        failedLoad: 'Failed to load muscle groups:',
+        noResults: 'No muscle groups found.',
+        selected: 'Selected',
+        tapToggle: 'Tap to toggle',
+        tapChoose: 'Tap to choose',
+      };
 
   useEffect(() => {
     const loadMuscleGroups = async () => {
@@ -130,24 +160,24 @@ export default function MuscleGroupSelectScreen() {
         <View className="gap-3">
           <View className="flex-row items-center justify-between gap-3">
             <Pressable onPress={goBack} className="h-10 w-[110px] items-center justify-center rounded-full border border-slate-700">
-              <Text className="text-sm font-semibold text-slate-300">Go Back</Text>
+              <Text className="text-sm font-semibold text-slate-300">{copy.goBack}</Text>
             </Pressable>
 
             <Pressable onPress={saveSelection} className="h-10 w-[110px] items-center justify-center rounded-full bg-sky-500">
-              <Text className="text-sm font-semibold text-sky-950">Save</Text>
+              <Text className="text-sm font-semibold text-sky-950">{copy.save}</Text>
             </Pressable>
           </View>
 
           <Text className="text-3xl font-extrabold text-white">
-            {isOtherMode ? 'Select Other Musclegroups' : 'Select Musclegroup'}
+            {isOtherMode ? copy.titleOther : copy.titlePrimary}
           </Text>
 
           <View className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Search</Text>
+            <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.search}</Text>
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search musclegroups"
+              placeholder={copy.searchPlaceholder}
               placeholderTextColor="#94a3b8"
               autoCapitalize="none"
               autoCorrect={false}
@@ -164,13 +194,13 @@ export default function MuscleGroupSelectScreen() {
 
         {!loading && errorMessage ? (
           <View className="mt-4 rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
-            <Text className="text-sm text-rose-200">Failed to load musclegroups: {errorMessage}</Text>
+            <Text className="text-sm text-rose-200">{copy.failedLoad} {errorMessage}</Text>
           </View>
         ) : null}
 
         {!loading && filteredMuscleGroups.length === 0 ? (
           <View className="mt-5 rounded-xl border border-dashed border-slate-700 p-4">
-            <Text className="text-slate-400">No musclegroups found.</Text>
+            <Text className="text-slate-400">{copy.noResults}</Text>
           </View>
         ) : null}
 
@@ -186,7 +216,7 @@ export default function MuscleGroupSelectScreen() {
               >
                 <Text className="text-base font-semibold text-white">{entry.name}</Text>
                 <Text className="mt-1 text-xs text-slate-400">
-                  {selected ? 'Selected' : isOtherMode ? 'Tap to toggle' : 'Tap to choose'}
+                  {selected ? copy.selected : isOtherMode ? copy.tapToggle : copy.tapChoose}
                 </Text>
               </Pressable>
             );

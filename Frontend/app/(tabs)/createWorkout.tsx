@@ -5,6 +5,7 @@ import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
 type ExerciseSelectionParams = {
@@ -13,6 +14,7 @@ type ExerciseSelectionParams = {
 	selectedToken?: string;
 	draft?: string;
 	workoutId?: string;
+	workoutName?: string;
 };
 
 type EditableSet = {
@@ -35,6 +37,18 @@ type WorkoutDraft = {
 	workoutName: string;
 	exercises: EditableExercise[];
 };
+
+function parseWorkoutDraft(rawDraft: string): WorkoutDraft | null {
+	try {
+		return JSON.parse(rawDraft) as WorkoutDraft;
+	} catch {
+		try {
+			return JSON.parse(decodeURIComponent(rawDraft)) as WorkoutDraft;
+		} catch {
+			return null;
+		}
+	}
+}
 
 function createDefaultSet(position: number): EditableSet {
 	return {
@@ -69,9 +83,79 @@ export default function CreateWorkoutScreen() {
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
 	const { session } = useAuth();
+	const { language } = useLanguage();
+	const copy = language === 'de-CH'
+		? {
+			newWorkout: 'Neuer Workout',
+			loadFailed: 'Laden fehlgeschlagen',
+			workoutNotFound: 'Workout nicht gefunden.',
+			notSignedIn: 'Nicht angemeldet',
+			loginAgain: 'Bitte melde dich erneut an.',
+			nameRequired: 'Name erforderlich',
+			enterName: 'Bitte gib einen Workout-Namen ein.',
+			addExercise: 'Übung hinzufügen',
+			addAtLeastOne: 'Bitte füge mindestens eine Übung hinzu.',
+			updateFailed: 'Workout konnte nicht aktualisiert werden',
+			createFailed: 'Workout konnte nicht erstellt werden',
+			saved: 'Gespeichert',
+			updated: 'Workout aktualisiert.',
+			created: 'Neuer Workout wurde erstellt.',
+			saveFailed: 'Speichern fehlgeschlagen',
+			saveWorkoutFailed: 'Workout konnte nicht gespeichert werden',
+			loadingWorkout: 'Workout wird geladen...',
+			discard: 'Verwerfen',
+			saving: 'Speichert...',
+			save: 'Speichern',
+			title: 'Workout erstellen',
+			subtitle: 'Baue deinen Workout, indem du Übungen und Sätze hinzufügst.',
+			workoutName: 'Workout-Name',
+			workoutPlaceholder: 'z.B. Push Day',
+			addExerciseButton: 'Neue Übung hinzufügen',
+			noExercise: 'Noch keine Übung ausgewählt.',
+			exercise: 'Übung',
+			deleteExercise: 'Übung löschen',
+			pauseTimer: 'Pausen-Timer',
+			set: 'Satz',
+			delete: 'Löschen',
+			addSet: 'Neuen Satz hinzufügen',
+		}
+		: {
+			newWorkout: 'New Workout',
+			loadFailed: 'Load failed',
+			workoutNotFound: 'Workout not found.',
+			notSignedIn: 'Not signed in',
+			loginAgain: 'Please log in again.',
+			nameRequired: 'Name required',
+			enterName: 'Please enter a workout name.',
+			addExercise: 'Add exercise',
+			addAtLeastOne: 'Please add at least one exercise.',
+			updateFailed: 'Failed to update workout',
+			createFailed: 'Failed to create workout',
+			saved: 'Saved',
+			updated: 'Workout updated.',
+			created: 'New workout has been created.',
+			saveFailed: 'Save failed',
+			saveWorkoutFailed: 'Failed to save workout',
+			loadingWorkout: 'Loading workout...',
+			discard: 'Discard',
+			saving: 'Saving...',
+			save: 'Save',
+			title: 'Create Workout',
+			subtitle: 'Build your workout by adding exercises and sets.',
+			workoutName: 'Workout name',
+			workoutPlaceholder: 'e.g. Push Day',
+			addExerciseButton: 'Add New Exercise',
+			noExercise: 'No exercise selected yet.',
+			exercise: 'Exercise',
+			deleteExercise: 'Delete exercise',
+			pauseTimer: 'Pause Timer',
+			set: 'Set',
+			delete: 'Delete',
+			addSet: 'Add New Set',
+		};
 	const params = useLocalSearchParams<ExerciseSelectionParams>();
 
-	const [workoutName, setWorkoutName] = useState('New Workout');
+	const [workoutName, setWorkoutName] = useState(copy.newWorkout);
 	const [exercises, setExercises] = useState<EditableExercise[]>([]);
 	const [saving, setSaving] = useState(false);
 	const [loadingWorkout, setLoadingWorkout] = useState(false);
@@ -84,6 +168,16 @@ export default function CreateWorkoutScreen() {
 		typeof params.selectedExerciseId === 'string' ? params.selectedExerciseId : undefined;
 	const selectedExerciseName =
 		typeof params.selectedExerciseName === 'string' ? params.selectedExerciseName : undefined;
+	const incomingWorkoutName =
+		typeof params.workoutName === 'string' ? params.workoutName : undefined;
+
+	useEffect(() => {
+		if (!incomingWorkoutName || incomingWorkoutName.trim().length === 0) {
+			return;
+		}
+
+		setWorkoutName(incomingWorkoutName);
+	}, [incomingWorkoutName]);
 
 	useEffect(() => {
 		const draftRaw = typeof params.draft === 'string' ? params.draft : undefined;
@@ -92,20 +186,21 @@ export default function CreateWorkoutScreen() {
 			return;
 		}
 
-		try {
-			const parsedDraft = JSON.parse(draftRaw) as WorkoutDraft;
-			if (typeof parsedDraft.workoutName === 'string') {
-				setWorkoutName(parsedDraft.workoutName);
-			}
-
-			if (Array.isArray(parsedDraft.exercises)) {
-				setExercises(parsedDraft.exercises);
-			}
-
-			lastAppliedDraftRef.current = draftRaw;
-		} catch {
+		const parsedDraft = parseWorkoutDraft(draftRaw);
+		if (!parsedDraft) {
 			// Ignore malformed draft payload and keep local state.
+			return;
 		}
+
+		if (typeof parsedDraft.workoutName === 'string') {
+			setWorkoutName(parsedDraft.workoutName);
+		}
+
+		if (Array.isArray(parsedDraft.exercises)) {
+			setExercises(parsedDraft.exercises);
+		}
+
+		lastAppliedDraftRef.current = draftRaw;
 	}, [params.draft]);
 
 	useEffect(() => {
@@ -116,7 +211,7 @@ export default function CreateWorkoutScreen() {
 			return;
 		}
 
-		setWorkoutName('New Workout');
+		setWorkoutName(copy.newWorkout);
 		setExercises([]);
 		setLoadingWorkout(false);
 		lastAppliedDraftRef.current = undefined;
@@ -144,7 +239,7 @@ export default function CreateWorkoutScreen() {
 
 			if (workoutError || !workout) {
 				setLoadingWorkout(false);
-				Alert.alert('Load failed', workoutError?.message ?? 'Workout not found.');
+				Alert.alert(copy.loadFailed, workoutError?.message ?? copy.workoutNotFound);
 				return;
 			}
 
@@ -156,7 +251,7 @@ export default function CreateWorkoutScreen() {
 
 			if (workoutExerciseError) {
 				setLoadingWorkout(false);
-				Alert.alert('Load failed', workoutExerciseError.message);
+				Alert.alert(copy.loadFailed, workoutExerciseError.message);
 				return;
 			}
 
@@ -275,7 +370,8 @@ export default function CreateWorkoutScreen() {
 		const selectedIdsParam = encodeURIComponent(selectedExerciseIds.join(','));
 		const draftParam = encodeURIComponent(draftPayload);
 		const workoutIdParam = editingWorkoutId ? `&workoutId=${encodeURIComponent(editingWorkoutId)}` : '';
-		router.push((`/exercise-select?selectedIds=${selectedIdsParam}&draft=${draftParam}${workoutIdParam}` as Href));
+		const workoutNameParam = `&workoutName=${encodeURIComponent(workoutName)}`;
+		router.push((`/exercise-select?selectedIds=${selectedIdsParam}&draft=${draftParam}${workoutIdParam}${workoutNameParam}` as Href));
 	};
 
 	const addSetToExercise = (exerciseId: string) => {
@@ -313,19 +409,19 @@ export default function CreateWorkoutScreen() {
 
 	const saveWorkout = async () => {
 		if (!session?.user?.id) {
-			Alert.alert('Not signed in', 'Please log in again.');
+			Alert.alert(copy.notSignedIn, copy.loginAgain);
 			return;
 		}
 
 		const trimmedName = workoutName.trim();
 
 		if (!trimmedName) {
-			Alert.alert('Name required', 'Please enter a workout name.');
+			Alert.alert(copy.nameRequired, copy.enterName);
 			return;
 		}
 
 		if (exercises.length === 0) {
-			Alert.alert('Add exercise', 'Please add at least one exercise.');
+			Alert.alert(copy.addExercise, copy.addAtLeastOne);
 			return;
 		}
 
@@ -348,7 +444,7 @@ export default function CreateWorkoutScreen() {
 					.maybeSingle();
 
 				if (updateWorkoutError || !updatedWorkout) {
-					throw new Error(updateWorkoutError?.message ?? 'Failed to update workout');
+					throw new Error(updateWorkoutError?.message ?? copy.updateFailed);
 				}
 
 				const { data: existingExerciseRows, error: existingExerciseRowsError } = await supabase
@@ -394,7 +490,7 @@ export default function CreateWorkoutScreen() {
 					.single();
 
 				if (workoutError || !workout) {
-					throw new Error(workoutError?.message ?? 'Failed to create workout');
+					throw new Error(workoutError?.message ?? copy.createFailed);
 				}
 
 				workoutId = workout.id;
@@ -431,11 +527,11 @@ export default function CreateWorkoutScreen() {
 				}
 			}
 
-			Alert.alert('Saved', editingWorkoutId ? 'Workout updated.' : 'New workout has been created.');
+			Alert.alert(copy.saved, editingWorkoutId ? copy.updated : copy.created);
 			router.replace('/(tabs)/workouts' as Href);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Failed to save workout';
-			Alert.alert('Save failed', message);
+			const message = error instanceof Error ? error.message : copy.saveWorkoutFailed;
+			Alert.alert(copy.saveFailed, message);
 		} finally {
 			setSaving(false);
 		}
@@ -452,7 +548,7 @@ export default function CreateWorkoutScreen() {
 			>
 				{loadingWorkout ? (
 					<View className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
-						<Text className="text-slate-300">Loading workout...</Text>
+						<Text className="text-slate-300">{copy.loadingWorkout}</Text>
 					</View>
 				) : null}
 
@@ -461,7 +557,7 @@ export default function CreateWorkoutScreen() {
 						onPress={discardChanges}
 						className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3"
 					>
-						<Text className="text-center text-sm font-bold text-slate-200">Discard</Text>
+						<Text className="text-center text-sm font-bold text-slate-200">{copy.discard}</Text>
 					</Pressable>
 
 					<Pressable
@@ -469,19 +565,19 @@ export default function CreateWorkoutScreen() {
 						disabled={saving}
 						className={`flex-1 rounded-xl px-4 py-3 ${saving ? 'bg-sky-300/60' : 'bg-sky-400'}`}
 					>
-						<Text className="text-center text-sm font-extrabold text-sky-950">{saving ? 'Saving...' : 'Save'}</Text>
+						<Text className="text-center text-sm font-extrabold text-sky-950">{saving ? copy.saving : copy.save}</Text>
 					</Pressable>
 				</View>
 
-				<Text className="mt-6 text-3xl font-extrabold text-white">Create Workout</Text>
-				<Text className="mt-2 text-slate-300">Build your workout by adding exercises and sets.</Text>
+				<Text className="mt-6 text-3xl font-extrabold text-white">{copy.title}</Text>
+				<Text className="mt-2 text-slate-300">{copy.subtitle}</Text>
 
 				<View className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-					<Text className="text-sm font-semibold uppercase tracking-wide text-slate-300">Workout name</Text>
+					<Text className="text-sm font-semibold uppercase tracking-wide text-slate-300">{copy.workoutName}</Text>
 					<TextInput
 						value={workoutName}
 						onChangeText={setWorkoutName}
-						placeholder="e.g. Push Day"
+						placeholder={copy.workoutPlaceholder}
 						placeholderTextColor="#94a3b8"
 						className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-base text-white"
 					/>
@@ -490,13 +586,13 @@ export default function CreateWorkoutScreen() {
 						onPress={openExerciseSelector}
 						className="mt-4 rounded-xl border border-sky-400 bg-sky-400/20 px-4 py-3"
 					>
-						<Text className="text-center text-sm font-bold text-sky-200">Add New Exercise</Text>
+						<Text className="text-center text-sm font-bold text-sky-200">{copy.addExerciseButton}</Text>
 					</Pressable>
 				</View>
 
 				{exercises.length === 0 ? (
 					<View className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-4">
-						<Text className="text-slate-400">No exercise selected yet.</Text>
+						<Text className="text-slate-400">{copy.noExercise}</Text>
 					</View>
 				) : null}
 
@@ -504,7 +600,7 @@ export default function CreateWorkoutScreen() {
 					<View key={exercise.id} className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
 						<View className="flex-row items-start justify-between">
 							<View className="flex-1 pr-3">
-								<Text className="text-xs uppercase tracking-wide text-slate-400">Exercise {index + 1}</Text>
+								<Text className="text-xs uppercase tracking-wide text-slate-400">{copy.exercise} {index + 1}</Text>
 								<Text className="mt-1 text-lg font-bold text-white">{exercise.name}</Text>
 							</View>
 
@@ -512,12 +608,12 @@ export default function CreateWorkoutScreen() {
 								onPress={() => removeExercise(exercise.id)}
 								className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 py-2"
 							>
-								<Text className="text-xs font-semibold text-rose-300">Delete exercise</Text>
+								<Text className="text-xs font-semibold text-rose-300">{copy.deleteExercise}</Text>
 							</Pressable>
 						</View>
 
 						<View className="mt-3">
-							<Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pause Timer</Text>
+							<Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.pauseTimer}</Text>
 							<Pressable
 								onPress={() =>
 									setOpenPausePickerExerciseId((current) => (current === exercise.id ? null : exercise.id))
@@ -556,7 +652,7 @@ export default function CreateWorkoutScreen() {
 						<View className="mt-3 gap-2">
 							<View className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
 								<View className="flex-row border-b border-slate-800 pb-2">
-									<Text className="w-12 text-xs font-bold uppercase text-slate-400">Set</Text>
+									<Text className="w-12 text-xs font-bold uppercase text-slate-400">{copy.set}</Text>
 									<Text className="flex-1 text-xs font-bold uppercase text-slate-400">Kg</Text>
 									<Text className="flex-1 text-xs font-bold uppercase text-slate-400">Reps</Text>
 									<Text className="flex-1 text-xs font-bold uppercase text-slate-400">Total</Text>
@@ -574,7 +670,7 @@ export default function CreateWorkoutScreen() {
 														onPress={() => removeSetFromExercise(exercise.id, setItem.id)}
 														className="h-full min-h-[44px] items-center justify-center rounded-lg bg-rose-500 px-3"
 													>
-														<Text className="text-xs font-bold text-rose-50">Delete</Text>
+														<Text className="text-xs font-bold text-rose-50">{copy.delete}</Text>
 													</Pressable>
 												</View>
 											)}
@@ -597,7 +693,7 @@ export default function CreateWorkoutScreen() {
 							onPress={() => addSetToExercise(exercise.id)}
 							className="mt-3 rounded-lg border border-emerald-500 px-3 py-2"
 						>
-							<Text className="text-center text-sm font-semibold text-emerald-300">Add New Set</Text>
+							<Text className="text-center text-sm font-semibold text-emerald-300">{copy.addSet}</Text>
 						</Pressable>
 					</View>
 				))}

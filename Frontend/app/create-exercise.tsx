@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { apiRequest } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
@@ -37,6 +38,7 @@ type DraftState = {
 type Params = {
   draft?: string;
   workoutId?: string;
+  workoutName?: string;
   selectedEquipmentId?: string;
   selectedEquipmentName?: string;
   equipmentToken?: string;
@@ -102,6 +104,18 @@ function normalizeDraft(raw: unknown): DraftState {
   };
 }
 
+function parseDraftParam(rawDraft: string) {
+  try {
+    return JSON.parse(rawDraft);
+  } catch {
+    try {
+      return JSON.parse(decodeURIComponent(rawDraft));
+    } catch {
+      return null;
+    }
+  }
+}
+
 function parseNullableInteger(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -117,6 +131,61 @@ export default function CreateExerciseScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
   const { session } = useAuth();
+  const { language } = useLanguage();
+
+  const copy = language === 'de-CH'
+    ? {
+        signInAgain: 'Bitte melde dich erneut an.',
+        nameRequired: 'Name der Übung ist erforderlich.',
+        muscleRequired: 'Bitte wähle eine Muskelgruppe aus.',
+        equipmentWhole: 'Geräte-ID muss eine ganze Zahl sein.',
+        savedTitle: 'Gespeichert',
+        savedBody: 'wurde erstellt.',
+        createFailed: 'Übung konnte nicht erstellt werden.',
+        discard: 'Verwerfen',
+        save: 'Speichern',
+        title: 'Übung erstellen',
+        subtitle: 'Füge deiner Übungsbibliothek eine neue Übung hinzu.',
+        name: 'Name',
+        namePlaceholder: 'z.B. Bankdrücken',
+        equipment: 'Gerät',
+        selectEquipment: 'Gerät auswählen',
+        equipmentHint: 'Wähle ein Gerät aus deiner Liste.',
+        muscleGroup: 'Muskelgruppe',
+        selectMuscle: 'Muskelgruppe auswählen',
+        primaryHint: 'Wähle die primäre Muskelgruppe aus.',
+        otherMuscles: 'Weitere Muskelgruppen',
+        selectOther: 'Weitere Muskelgruppen auswählen',
+        secondaryHint: 'Wähle unterstützende Muskelgruppen aus.',
+        publicExercise: 'Öffentliche Übung',
+        publicHint: 'Andere Nutzer können diese Übung sehen.',
+      }
+    : {
+        signInAgain: 'Please sign in again.',
+        nameRequired: 'Exercise name is required.',
+        muscleRequired: 'Please select one muscle group.',
+        equipmentWhole: 'Equipment ID must be a whole number.',
+        savedTitle: 'Saved',
+        savedBody: 'has been created.',
+        createFailed: 'Failed to create exercise.',
+        discard: 'Discard',
+        save: 'Save',
+        title: 'Create Exercise',
+        subtitle: 'Add a new movement to your exercise library.',
+        name: 'Name',
+        namePlaceholder: 'e.g. Bench Press',
+        equipment: 'Equipment',
+        selectEquipment: 'Select Equipment',
+        equipmentHint: 'Choose equipment from your list.',
+        muscleGroup: 'Muscle group',
+        selectMuscle: 'Select Muscle group',
+        primaryHint: 'Select the primary muscle group.',
+        otherMuscles: 'Other Muscle groups',
+        selectOther: 'Select Other Muscle groups',
+        secondaryHint: 'Select additional supporting muscle groups.',
+        publicExercise: 'Public exercise',
+        publicHint: 'Let other users see this exercise.',
+      };
 
   const [draft, setDraft] = useState<DraftState>(createDefaultDraft);
   const [saving, setSaving] = useState(false);
@@ -132,13 +201,14 @@ export default function CreateExerciseScreen() {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(draftRaw);
-      setDraft(normalizeDraft(parsed));
-      lastAppliedDraftRef.current = draftRaw;
-    } catch {
+    const parsed = parseDraftParam(draftRaw);
+    if (!parsed) {
       setDraft(createDefaultDraft());
+      return;
     }
+
+    setDraft(normalizeDraft(parsed));
+    lastAppliedDraftRef.current = draftRaw;
   }, [params.draft]);
 
   useEffect(() => {
@@ -213,11 +283,13 @@ export default function CreateExerciseScreen() {
 
   const draftParam = useMemo(() => encodeURIComponent(JSON.stringify(draft)), [draft]);
   const workoutIdParam = typeof params.workoutId === 'string' ? params.workoutId : '';
+  const workoutNameParam = typeof params.workoutName === 'string' ? params.workoutName : '';
 
   const discard = () => {
     const target =
       `/exercise-select?draft=${draftParam}` +
-      `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+      `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}`;
 
     router.replace(target as Href);
   };
@@ -226,6 +298,7 @@ export default function CreateExerciseScreen() {
     const target =
       `/equipment-select?draft=${draftParam}` +
       `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}` +
       `&selectedEquipmentId=${encodeURIComponent(draft.equipmentId ?? '')}`;
 
     router.push(target as Href);
@@ -235,6 +308,7 @@ export default function CreateExerciseScreen() {
     const target =
       `/muscle-group-select?mode=primary&draft=${draftParam}` +
       `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}` +
       `&selectedIds=${encodeURIComponent(draft.primaryMuscleId ?? '')}`;
 
     router.push(target as Href);
@@ -244,6 +318,7 @@ export default function CreateExerciseScreen() {
     const target =
       `/muscle-group-select?mode=other&draft=${draftParam}` +
       `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+      `&workoutName=${encodeURIComponent(workoutNameParam)}` +
       `&selectedIds=${encodeURIComponent(draft.otherMuscleIds.join(','))}`;
 
     router.push(target as Href);
@@ -251,24 +326,24 @@ export default function CreateExerciseScreen() {
 
   const saveExercise = async () => {
     if (!session?.access_token) {
-      setErrorMessage('Please sign in again.');
+      setErrorMessage(copy.signInAgain);
       return;
     }
 
     const trimmedName = draft.name.trim();
     if (!trimmedName) {
-      setErrorMessage('Exercise name is required.');
+      setErrorMessage(copy.nameRequired);
       return;
     }
 
     if (!draft.primaryMuscleId) {
-      setErrorMessage('Please select one muscle group.');
+      setErrorMessage(copy.muscleRequired);
       return;
     }
 
     const parsedEquipmentId = parseNullableInteger(draft.equipmentId ?? '');
     if (Number.isNaN(parsedEquipmentId)) {
-      setErrorMessage('Equipment ID must be a whole number.');
+      setErrorMessage(copy.equipmentWhole);
       return;
     }
 
@@ -301,13 +376,14 @@ export default function CreateExerciseScreen() {
         throw new Error(muscleInsertError.message);
       }
 
-      Alert.alert('Saved', `${createdExercise.name} has been created.`);
+      Alert.alert(copy.savedTitle, `${createdExercise.name} ${copy.savedBody}`);
       const target =
         `/exercise-select?draft=${draftParam}` +
-        `&workoutId=${encodeURIComponent(workoutIdParam)}`;
+        `&workoutId=${encodeURIComponent(workoutIdParam)}` +
+        `&workoutName=${encodeURIComponent(workoutNameParam)}`;
       router.replace(target as Href);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to create exercise.');
+      setErrorMessage(error instanceof Error ? error.message : copy.createFailed);
     } finally {
       setSaving(false);
     }
@@ -332,7 +408,7 @@ export default function CreateExerciseScreen() {
               disabled={saving}
               className={`h-10 flex-1 flex-row items-center justify-center rounded-xl border border-slate-700 ${saving ? 'opacity-50' : ''}`}
             >
-              <Text className="text-sm font-semibold text-slate-300">Discard</Text>
+              <Text className="text-sm font-semibold text-slate-300">{copy.discard}</Text>
             </Pressable>
 
             <Pressable
@@ -343,62 +419,62 @@ export default function CreateExerciseScreen() {
               {saving ? (
                 <ActivityIndicator color="#082f49" />
               ) : (
-                <Text className="text-sm font-extrabold text-sky-950">Save</Text>
+                <Text className="text-sm font-extrabold text-sky-950">{copy.save}</Text>
               )}
             </Pressable>
           </View>
 
           <View>
-            <Text className="text-3xl font-extrabold text-white">Create Exercise</Text>
-            <Text className="mt-1 text-sm text-slate-400">Add a new movement to your exercise library.</Text>
+            <Text className="text-3xl font-extrabold text-white">{copy.title}</Text>
+            <Text className="mt-1 text-sm text-slate-400">{copy.subtitle}</Text>
           </View>
         </View>
 
         <View className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</Text>
+          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.name}</Text>
           <TextInput
             value={draft.name}
             onChangeText={(value) => setDraft((previous) => ({ ...previous, name: value }))}
-            placeholder="e.g. Bench Press"
+            placeholder={copy.namePlaceholder}
             placeholderTextColor="#94a3b8"
             autoCapitalize="words"
             className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-base text-white"
           />
 
-          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Equipment</Text>
+          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.equipment}</Text>
           <Pressable onPress={openEquipmentSelect} className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
             <Text className="text-base font-semibold text-white">
-              {draft.equipmentName || 'Select Equipment'}
+              {draft.equipmentName || copy.selectEquipment}
             </Text>
-            <Text className="mt-1 text-xs text-slate-400">Choose equipment from your list.</Text>
+            <Text className="mt-1 text-xs text-slate-400">{copy.equipmentHint}</Text>
           </Pressable>
 
-          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Musclegroup</Text>
+          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.muscleGroup}</Text>
           <Pressable
             onPress={openPrimaryMuscleSelect}
             className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
           >
             <Text className="text-base font-semibold text-white">
-              {draft.primaryMuscleName || 'Select Musclegroup'}
+              {draft.primaryMuscleName || copy.selectMuscle}
             </Text>
-            <Text className="mt-1 text-xs text-slate-400">Select the primary muscle group.</Text>
+            <Text className="mt-1 text-xs text-slate-400">{copy.primaryHint}</Text>
           </Pressable>
 
-          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Other Musclegroups</Text>
+          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.otherMuscles}</Text>
           <Pressable
             onPress={openOtherMusclesSelect}
             className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
           >
             <Text className="text-base font-semibold text-white">
-              {draft.otherMuscleNames.length > 0 ? draft.otherMuscleNames.join(', ') : 'Select Other Musclegroups'}
+              {draft.otherMuscleNames.length > 0 ? draft.otherMuscleNames.join(', ') : copy.selectOther}
             </Text>
-            <Text className="mt-1 text-xs text-slate-400">Select additional supporting muscle groups.</Text>
+            <Text className="mt-1 text-xs text-slate-400">{copy.secondaryHint}</Text>
           </Pressable>
 
           <View className="mt-5 flex-row items-center justify-between rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
             <View>
-              <Text className="text-base font-semibold text-white">Public exercise</Text>
-              <Text className="mt-1 text-sm text-slate-400">Let other users see this exercise.</Text>
+              <Text className="text-base font-semibold text-white">{copy.publicExercise}</Text>
+              <Text className="mt-1 text-sm text-slate-400">{copy.publicHint}</Text>
             </View>
             <Switch
               value={draft.isPublic}

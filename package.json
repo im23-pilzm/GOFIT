@@ -1,4 +1,9 @@
 {
+  "private": true,
+  "workspaces": [
+    "Frontend",
+    "Backend"
+  ],
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
     "@supabase/supabase-js": "^2.102.1",

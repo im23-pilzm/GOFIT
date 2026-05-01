@@ -356,7 +356,6 @@ export default function CreateExerciseScreen() {
         body: JSON.stringify({
           name: trimmedName,
           equipment_id: parsedEquipmentId,
-          exercise_type_id: null,
           is_public: draft.isPublic,
         }),
       }, session.access_token);

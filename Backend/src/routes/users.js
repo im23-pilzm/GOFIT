@@ -17,9 +17,7 @@ const idParamSchema = Joi.object({
   id: Joi.string().trim().min(1).required(),
 });
 
-const updateUserSchema = Joi.object({
-  username: Joi.string().min(2).max(50),
-}).min(1);
+const updateUserSchema = Joi.object().unknown(true).min(1);
 
 const auth = async (req, res, next) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -61,7 +59,7 @@ router.get("/:id", async (req, res) => {
 
   const { data, error } = await userClient
     .from("users")
-    .select("id, email, username, created_at")
+    .select("id, email, created_at")
     .eq("id", userId)
     .single();
 
@@ -81,8 +79,9 @@ router.put("/:id", async (req, res) => {
   }
 
   const updates = {};
-  if (Object.prototype.hasOwnProperty.call(req.body, "username")) {
-    updates.username = req.body.username;
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: "No valid fields to update" });
   }
 
   const userClient = createAuthedSupabase(req.accessToken);
@@ -91,7 +90,7 @@ router.put("/:id", async (req, res) => {
     .from("users")
     .update(updates)
     .eq("id", userId)
-    .select("id, email, username, created_at")
+    .select("id, email, created_at")
     .single();
 
   if (updateError) {  

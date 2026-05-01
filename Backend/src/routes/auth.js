@@ -7,7 +7,6 @@ const router = express.Router();
 const registerSchema = Joi.object({
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(8).max(128).required(),
-  username: Joi.string().trim().min(2).max(50),
 });
 
 const loginSchema = Joi.object({
@@ -72,13 +71,6 @@ router.post("/register", async (req, res) => {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: value.email,
       password: value.password,
-      options: value.username
-        ? {
-            data: {
-              username: value.username,
-            },
-          }
-        : undefined,
     });
 
     if (signUpError) {

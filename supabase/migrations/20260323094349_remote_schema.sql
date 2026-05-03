@@ -160,7 +160,7 @@ alter table "public"."users" add column "created_at" timestamp with time zone no
 
 alter table "public"."users" alter column "id" drop identity;
 
-alter table "public"."users" alter column "id" set data type uuid using "id"::uuid;
+alter table "public"."users" alter column "id" set data type uuid using gen_random_uuid();
 
 alter table "public"."users" alter column "username" set data type text using "username"::text;
 

@@ -87,17 +87,22 @@ Du benötigst eine `.env` Datei im **Backend** Verzeichnis:
 
 ```bash
 # Backend/.env erstellen
+# macOS/Linux:
 touch Backend/.env
+
+# PowerShell(Windows):
+New-Item -ItemType File -Path "Backend/.env" -Force
 ```
 
 **Inhalt der `Backend/.env`:**
 ```env
 # Supabase Konfiguration
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key-here
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=optional-service-role-key
 
 # Server Konfiguration
-PORT=3000
+PORT=3005
 NODE_ENV=development
 
 # CORS (für lokale Entwicklung)
@@ -109,8 +114,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/gofit
 
 **Frontend `.env` (optional, für zusätzliche Konfiguration):**
 ```bash
-# Frontend/.env
+# Frontend/.env erstellen
+# macOS/Linux:
 touch Frontend/.env.local
+
+# PowerShell(Windows):
+New-Item -ItemType File -Path "Backend/.env.local" -Force
 ```
 
 **Inhalt der `Frontend/.env.local`:**
@@ -127,7 +136,15 @@ EXPO_PUBLIC_API_URL=http://localhost:3000/api
 3. Gehe zu **Settings → API**
 4. Kopiere:
    - `Project URL` → `SUPABASE_URL`
-   - `anon public` Key → `SUPABASE_KEY`
+   - `anon public` Key → `SUPABASE_ANON_KEY`
+
+### Hinweis zur Anmeldung
+
+Wenn in Supabase **E-Mail-Bestätigung** aktiviert ist, ist das normal:
+
+- `Login` funktioniert erst nach bestätigter E-Mail.
+- `Register` erstellt den Account, aber loggt nicht automatisch ein.
+- Wenn du für Tests sofortiges Einloggen willst, deaktiviere die E-Mail-Bestätigung in Supabase Auth.
 
 ### Schritt 3: Datenbank initialisieren
 
@@ -163,11 +180,11 @@ cd Backend
 npm run dev
 
 # Output:
-# Server is running on port 3000
+# Server is running on port 3005
 # Database connection successful ✓
 ```
 
-**Der Backend läuft dann auf:** `http://localhost:3000`
+**Der Backend läuft dann auf:** `http://localhost:3005`
 
 ### Frontend starten (neue Terminal-Session)
 

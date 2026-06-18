@@ -1,3 +1,4 @@
+// Saved workouts library - view, edit, delete, and start workouts
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
-type Workout = {
-  id: string;
-  name: string;
-  started_at: string;
-};
-
+// Formatting helper for last completed date
 function formatLastDone(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
     day: '2-digit',

@@ -8,6 +8,7 @@ const router = express.Router();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
+// Creates Supabase client authenticated with user's access token for RLS-protected queries
 const createAuthedSupabase = (accessToken) =>
   createClient(supabaseUrl, supabaseAnonKey, {
     global: {
@@ -17,17 +18,21 @@ const createAuthedSupabase = (accessToken) =>
     },
   });
 
+// Schema for validating UUID format (version 4 or 5)
 const uuidSchema = Joi.string().guid({ version: ["uuidv4", "uuidv5"] });
 
+// Schema for validating exercise ID parameter
 const exerciseIdParamSchema = Joi.object({
   id: uuidSchema.required(),
 });
 
+// Schema for validating exercise list query filters (is_public, created_by)
 const listQuerySchema = Joi.object({
   is_public: Joi.boolean(),
   created_by: uuidSchema,
 });
 
+// Schema for exercise creation - name required, others optional
 const createExerciseSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
   equipment_id: Joi.number().integer().allow(null),
@@ -35,6 +40,7 @@ const createExerciseSchema = Joi.object({
   is_public: Joi.boolean().default(false),
 });
 
+// Schema for exercise update - at least one field required
 const updateExerciseSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255),
   equipment_id: Joi.number().integer().allow(null),
@@ -42,6 +48,7 @@ const updateExerciseSchema = Joi.object({
   is_public: Joi.boolean(),
 }).min(1);
 
+// Middleware: Authenticates user from Bearer token, sets req.user and req.accessToken
 const auth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -62,6 +69,7 @@ const auth = async (req, res, next) => {
   }
 };
 
+// Middleware: Validates and sanitizes query parameters (is_public, created_by)
 const validateQuery = (req, res, next) => {
   const { error, value } = listQuerySchema.validate(req.query, {
     abortEarly: true,
@@ -77,6 +85,7 @@ const validateQuery = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates exercise ID parameter (must be valid UUID)
 const validateExerciseId = (req, res, next) => {
   const { error } = exerciseIdParamSchema.validate(req.params);
   if (error) {
@@ -86,6 +95,7 @@ const validateExerciseId = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates exercise creation body
 const validateCreateBody = (req, res, next) => {
   const { error, value } = createExerciseSchema.validate(req.body, {
     abortEarly: true,
@@ -101,6 +111,7 @@ const validateCreateBody = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates exercise update body
 const validateUpdateBody = (req, res, next) => {
   const { error, value } = updateExerciseSchema.validate(req.body, {
     abortEarly: true,
@@ -214,7 +225,7 @@ router.post("/", auth, validateCreateBody, async (req, res) => {
   }
 });
 
-// PUT /api/exercises/:id - Update exercise
+// PUT /api/exercises/:id - Update exercise (only creator can update)
 router.put("/:id", auth, validateExerciseId, validateUpdateBody, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);
@@ -255,7 +266,7 @@ router.put("/:id", auth, validateExerciseId, validateUpdateBody, async (req, res
   }
 });
 
-// DELETE /api/exercises/:id - Delete exercise
+// DELETE /api/exercises/:id - Delete exercise (only creator can delete)
 router.delete("/:id", auth, validateExerciseId, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);

@@ -8,6 +8,7 @@ const router = express.Router();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
+// Creates Supabase client authenticated with user's access token for RLS-protected queries
 const createAuthedSupabase = (accessToken) =>
   createClient(supabaseUrl, supabaseAnonKey, {
     global: {
@@ -17,27 +18,33 @@ const createAuthedSupabase = (accessToken) =>
     },
   });
 
+// Schema for validating UUID format (version 4 or 5)
 const uuidSchema = Joi.string().guid({ version: ["uuidv4", "uuidv5"] });
 
+// Schema for validating workout ID parameter
 const workoutIdParamSchema = Joi.object({
   id: uuidSchema.required(),
 });
 
+// Schema for validating workout and exercise ID parameters in nested routes
 const workoutExerciseParamsSchema = Joi.object({
   workoutId: uuidSchema.required(),
   exerciseId: uuidSchema, // exerciseId is optional for GET/POST but required for PUT/DELETE
 });
 
+// Schema for validating pagination query parameters (page, limit)
 const listQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
 });
 
+// Schema for workout creation - name required, started_at defaults to now
 const createWorkoutSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
   started_at: Joi.date().iso().default(() => new Date().toISOString()),
 });
 
+// Schema for workout update - allows partial updates
 const updateWorkoutSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255),
   duration_seconds: Joi.number().integer().min(0),
@@ -46,6 +53,7 @@ const updateWorkoutSchema = Joi.object({
   finished_at: Joi.date().iso().allow(null),
 }).min(1);
 
+// Schema for finishing a workout - finished_at, duration_seconds, totals
 const finishWorkoutSchema = Joi.object({
   finished_at: Joi.date().iso().default(() => new Date().toISOString()),
   duration_seconds: Joi.number().integer().min(0),
@@ -53,21 +61,25 @@ const finishWorkoutSchema = Joi.object({
   total_sets: Joi.number().integer().min(0),
 });
 
+// Schema for adding exercise to workout - exercise_id required, position and rest_timer optional
 const createWorkoutExerciseSchema = Joi.object({
   exercise_id: uuidSchema.required(),
   position: Joi.number().integer().min(0),
   rest_timer_seconds: Joi.number().integer().min(0).default(60),
 });
 
+// Schema for updating exercise in workout - position and rest_timer optional
 const updateWorkoutExerciseSchema = Joi.object({
   position: Joi.number().integer().min(0),
   rest_timer_seconds: Joi.number().integer().min(0),
 }).min(1);
 
+// Schema for validating set ID parameter
 const setIdParamSchema = Joi.object({
   setId: uuidSchema.required(),
 });
 
+// Schema for creating a set - weight_kg and reps required, completed optional
 const createSetSchema = Joi.object({
   weight_kg: Joi.number().min(0).required(),
   reps: Joi.number().integer().min(0).required(),
@@ -75,6 +87,7 @@ const createSetSchema = Joi.object({
   position: Joi.number().integer().min(0),
 });
 
+// Schema for updating a set - allows partial updates
 const updateSetSchema = Joi.object({
   weight_kg: Joi.number().min(0),
   reps: Joi.number().integer().min(0),
@@ -82,6 +95,7 @@ const updateSetSchema = Joi.object({
   position: Joi.number().integer().min(0),
 }).min(1);
 
+// Middleware: Authenticates user from Bearer token, sets req.user and req.accessToken
 const auth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -102,7 +116,7 @@ const auth = async (req, res, next) => {
   }
 };
 
-// GET /api/workouts - List user workouts with pagination
+// GET /api/workouts - List user's workouts with pagination (page, limit)
 router.get("/", auth, async (req, res) => {
   try {
     const { error: queryError, value: query } = listQuerySchema.validate(req.query);
@@ -140,7 +154,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// GET /api/workouts/:id - Get workout details
+// GET /api/workouts/:id - Get complete workout with exercises and sets
 router.get("/:id", auth, async (req, res) => {
   try {
     const { error: paramError } = workoutIdParamSchema.validate(req.params);
@@ -205,7 +219,7 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// PUT /api/workouts/:id - Update workout
+// PUT /api/workouts/:id - Update workout (owner only)
 router.put("/:id", auth, async (req, res) => {
   try {
     const { error: paramError } = workoutIdParamSchema.validate(req.params);
@@ -248,7 +262,7 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/workouts/:id - Delete workout
+// DELETE /api/workouts/:id - Delete workout and associated data (owner only)
 router.delete("/:id", auth, async (req, res) => {
   try {
     const { error: paramError } = workoutIdParamSchema.validate(req.params);
@@ -284,7 +298,7 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
-// POST /api/workouts/:id/finish - Mark workout as finished
+// POST /api/workouts/:id/finish - Mark workout as completed
 router.post("/:id/finish", auth, async (req, res) => {
   try {
     const { error: paramError } = workoutIdParamSchema.validate(req.params);
@@ -335,9 +349,11 @@ router.post("/:id/finish", auth, async (req, res) => {
   }
 });
 
-// --- Workout Exercise Endpoints ---
+// ============================================
+// WORKOUT EXERCISE ENDPOINTS
+// ============================================
 
-// GET /api/workouts/:workoutId/exercises - List exercises in workout
+// GET /api/workouts/:workoutId/exercises - List all exercises in a workout
 router.get("/:workoutId/exercises", auth, async (req, res) => {
   try {
     const { workoutId } = req.params;
@@ -516,9 +532,11 @@ router.delete("/:workoutId/exercises/:exerciseId", auth, async (req, res) => {
   }
 });
 
-// --- Workout Exercise Set Endpoints ---
+// ============================================
+// WORKOUT EXERCISE SET ENDPOINTS
+// ============================================
 
-// Helper to check workout_exercise ownership
+// Helper: Verify user owns the workout containing an exercise
 const checkWorkoutExerciseOwnership = async (userClient, userId, workoutId, exerciseId) => {
   const { data, error } = await userClient
     .from("workout_exercise")
@@ -538,7 +556,7 @@ const checkWorkoutExerciseOwnership = async (userClient, userId, workoutId, exer
   return { workoutExerciseId: data.id };
 };
 
-// GET /api/workouts/:workoutId/exercises/:exerciseId/sets - List sets
+// GET /api/workouts/:workoutId/exercises/:exerciseId/sets - List all sets for an exercise
 router.get("/:workoutId/exercises/:exerciseId/sets", auth, async (req, res) => {
   try {
     const { workoutId, exerciseId } = req.params;
@@ -563,7 +581,7 @@ router.get("/:workoutId/exercises/:exerciseId/sets", auth, async (req, res) => {
   }
 });
 
-// POST /api/workouts/:workoutId/exercises/:exerciseId/sets - Add set
+// POST /api/workouts/:workoutId/exercises/:exerciseId/sets - Add set to exercise
 router.post("/:workoutId/exercises/:exerciseId/sets", auth, async (req, res) => {
   try {
     const { workoutId, exerciseId } = req.params;

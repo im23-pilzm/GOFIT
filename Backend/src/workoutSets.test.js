@@ -1,9 +1,10 @@
+// Import dependencies for testing
 const request = require('supertest');
 const express = require('express');
 const workoutRoutes = require('./routes/workouts');
 const { supabase } = require('./supabaseClient');
 
-// Mocking supabase client
+// Mock Supabase client - intercept auth.getUser calls
 jest.mock('./supabaseClient', () => ({
   supabase: {
     auth: {
@@ -12,6 +13,7 @@ jest.mock('./supabaseClient', () => ({
   }
 }));
 
+// Mock Supabase query builder methods
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
@@ -22,6 +24,7 @@ const mockEq = jest.fn();
 const mockOrder = jest.fn();
 const mockLimit = jest.fn();
 
+// Mock user client with chainable query methods
 const mockUserClient = {
   from: jest.fn(() => ({
     select: mockSelect,
@@ -36,14 +39,17 @@ const mockUserClient = {
   })),
 };
 
+// Mock Supabase createClient
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => mockUserClient),
 }));
 
+// Create Express app for testing with workout routes
 const app = express();
 app.use(express.json());
 app.use('/api/workouts', workoutRoutes);
 
+// Test suite for Workout Sets API
 describe('Workout Sets API', () => {
   const userId = '550e8400-e29b-41d4-a716-446655440001';
   const mockUser = { id: userId, email: 'test@example.com' };
@@ -53,11 +59,12 @@ describe('Workout Sets API', () => {
   const workoutExerciseId = '550e8400-e29b-41d4-a716-446655440004';
   const setId = '550e8400-e29b-41d4-a716-446655440005';
 
+  // Clear mocks before each test and set default return values
   beforeEach(() => {
     jest.clearAllMocks();
     supabase.auth.getUser.mockResolvedValue({ data: { user: mockUser }, error: null });
     
-    // Default chain returns
+    // Default chain returns for query builder
     mockSelect.mockReturnValue({ eq: mockEq });
     mockEq.mockReturnValue({ eq: mockEq, maybeSingle: mockMaybeSingle, order: mockOrder, select: mockSelect, single: mockSingle });
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
@@ -65,8 +72,9 @@ describe('Workout Sets API', () => {
     mockLimit.mockReturnValue({ maybeSingle: mockMaybeSingle });
   });
 
+  // Helper to mock successful ownership verification
   const mockOwnershipSuccess = () => {
-    // The checkWorkoutExerciseOwnership calls select -> eq -> eq -> maybeSingle
+    // checkWorkoutExerciseOwnership calls select -> eq -> eq -> maybeSingle
     mockSelect.mockReturnValueOnce({ eq: mockEq });
     mockEq.mockReturnValueOnce({ eq: mockEq });
     mockEq.mockReturnValueOnce({ maybeSingle: mockMaybeSingle });
@@ -80,6 +88,7 @@ describe('Workout Sets API', () => {
     });
   };
 
+  // Test group for GET /api/workouts/:workoutId/exercises/:exerciseId/sets
   describe('GET /api/workouts/:workoutId/exercises/:exerciseId/sets', () => {
     it('should list sets if owned', async () => {
       mockOwnershipSuccess();

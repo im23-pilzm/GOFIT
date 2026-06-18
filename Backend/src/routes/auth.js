@@ -4,17 +4,19 @@ const { supabase } = require("../supabaseClient");
 
 const router = express.Router();
 
+// Schema for user registration - validates email and password format
 const registerSchema = Joi.object({
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(8).max(128).required(),
 });
 
+// Schema for user login - validates email and password format
 const loginSchema = Joi.object({
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(1).required(),
 });
 
-// Reduce the Supabase session object to only the fields the frontend needs.
+// Converts Supabase session object to minimal payload (access_token, refresh_token, expires_in, token_type)
 const toSessionPayload = (session) => {
   if (!session) {
     return null;
@@ -28,7 +30,7 @@ const toSessionPayload = (session) => {
   };
 };
 
-// Return a minimal user payload so the API does not leak extra auth fields.
+// Converts Supabase user object to minimal payload (id, email) - prevents leaking sensitive auth data
 const toUserPayload = (user) => {
   if (!user) {
     return null;
@@ -40,7 +42,7 @@ const toUserPayload = (user) => {
   };
 };
 
-// Validate the bearer token and attach the authenticated user to the request.
+// Middleware: Validates Bearer token from Authorization header, attaches user to req.user
 const auth = async (req, res, next) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
@@ -56,6 +58,7 @@ const auth = async (req, res, next) => {
   next();
 };
 
+// POST /register - Create new user account with email and password
 router.post("/register", async (req, res) => {
   const { error, value } = registerSchema.validate(req.body, {
     abortEarly: true,
@@ -94,6 +97,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// POST /login - Authenticate user with email and password
 router.post("/login", async (req, res) => {
   const { error, value } = loginSchema.validate(req.body, {
     abortEarly: true,

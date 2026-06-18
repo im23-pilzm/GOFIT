@@ -1,3 +1,4 @@
+// Workout builder screen - add exercises and configure sets/reps/weight
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
+// Route parameters for exercise selection navigation
 type ExerciseSelectionParams = {
 	selectedExerciseId?: string;
 	selectedExerciseName?: string;
@@ -38,6 +40,7 @@ type WorkoutDraft = {
 	exercises: EditableExercise[];
 };
 
+// Parse and decode workout draft from URL parameter
 function parseWorkoutDraft(rawDraft: string): WorkoutDraft | null {
 	try {
 		return JSON.parse(rawDraft) as WorkoutDraft;
@@ -50,6 +53,7 @@ function parseWorkoutDraft(rawDraft: string): WorkoutDraft | null {
 	}
 }
 
+// Initialize new set with default weight and reps
 function createDefaultSet(position: number): EditableSet {
 	return {
 		id: `${Date.now()}-${Math.random()}`,

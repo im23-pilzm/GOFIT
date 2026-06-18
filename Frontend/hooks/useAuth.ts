@@ -1,3 +1,4 @@
+// Hook to access authentication context - provides session and auth methods
 import { useContext } from 'react';
 
 import { AuthContext } from '@/context/AuthContext';

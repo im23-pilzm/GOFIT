@@ -1,3 +1,4 @@
+// Muscle group selection screen for exercise primary and secondary muscles
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

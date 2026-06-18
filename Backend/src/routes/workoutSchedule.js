@@ -8,6 +8,7 @@ const router = express.Router();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
+// Creates Supabase client authenticated with user's access token for RLS-protected queries
 const createAuthedSupabase = (accessToken) =>
   createClient(supabaseUrl, supabaseAnonKey, {
     global: {
@@ -17,30 +18,36 @@ const createAuthedSupabase = (accessToken) =>
     },
   });
 
+// Schema for validating UUID format (version 4 or 5)
 const uuidSchema = Joi.string().guid({ version: ["uuidv4", "uuidv5"] });
 
+// Schema for validating schedule entry ID parameter
 const scheduleIdParamSchema = Joi.object({
   scheduleId: uuidSchema.required(),
 });
 
+// Schema for schedule list query - filter by date range or workout_id
 const listQuerySchema = Joi.object({
   from: Joi.date().iso(),
   to: Joi.date().iso(),
   workout_id: uuidSchema,
 });
 
+// Schema for schedule creation - workout_id optional, workout_name and scheduled_for required
 const createScheduleSchema = Joi.object({
   workout_id: uuidSchema.allow(null),
   workout_name: Joi.string().trim().min(1).max(120).required(),
   scheduled_for: Joi.date().iso().required(),
 });
 
+// Schema for schedule update - allows partial updates
 const updateScheduleSchema = Joi.object({
   workout_id: uuidSchema.allow(null),
   workout_name: Joi.string().trim().min(1).max(120),
   scheduled_for: Joi.date().iso(),
 }).min(1);
 
+// Middleware: Authenticates user from Bearer token, sets req.user and req.accessToken
 const auth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -61,6 +68,7 @@ const auth = async (req, res, next) => {
   }
 };
 
+// Middleware: Validates and sanitizes schedule list query parameters
 const validateQuery = (req, res, next) => {
   const { error, value } = listQuerySchema.validate(req.query, {
     abortEarly: true,
@@ -76,6 +84,7 @@ const validateQuery = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates schedule ID parameter (must be valid UUID)
 const validateScheduleId = (req, res, next) => {
   const { error } = scheduleIdParamSchema.validate(req.params);
   if (error) {
@@ -85,6 +94,7 @@ const validateScheduleId = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates schedule creation body
 const validateCreateBody = (req, res, next) => {
   const { error, value } = createScheduleSchema.validate(req.body, {
     abortEarly: true,
@@ -100,6 +110,7 @@ const validateCreateBody = (req, res, next) => {
   return next();
 };
 
+// Middleware: Validates schedule update body
 const validateUpdateBody = (req, res, next) => {
   const { error, value } = updateScheduleSchema.validate(req.body, {
     abortEarly: true,
@@ -115,6 +126,7 @@ const validateUpdateBody = (req, res, next) => {
   return next();
 };
 
+// Helper: Verify user owns the workout before scheduling it
 const ensureWorkoutOwnership = async (accessToken, userId, workoutId) => {
   if (!workoutId) {
     return { ok: true };
@@ -139,6 +151,7 @@ const ensureWorkoutOwnership = async (accessToken, userId, workoutId) => {
   return { ok: true };
 };
 
+// GET /api/workout-schedule - List user's scheduled workouts (filterable by date range or workout_id)
 router.get("/", auth, validateQuery, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);
@@ -174,6 +187,7 @@ router.get("/", auth, validateQuery, async (req, res) => {
   }
 });
 
+// POST /api/workout-schedule - Create new schedule entry
 router.post("/", auth, validateCreateBody, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);
@@ -205,6 +219,7 @@ router.post("/", auth, validateCreateBody, async (req, res) => {
   }
 });
 
+// PUT /api/workout-schedule/:scheduleId - Update schedule entry (owner only)
 router.put("/:scheduleId", auth, validateScheduleId, validateUpdateBody, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);
@@ -251,6 +266,7 @@ router.put("/:scheduleId", auth, validateScheduleId, validateUpdateBody, async (
   }
 });
 
+// DELETE /api/workout-schedule/:scheduleId - Delete schedule entry (owner only)
 router.delete("/:scheduleId", auth, validateScheduleId, async (req, res) => {
   try {
     const userClient = createAuthedSupabase(req.accessToken);

@@ -4,14 +4,17 @@ const { supabase } = require("../supabaseClient");
 
 const router = express.Router();
 
+// HTTP Cache-Control header for static metadata - cache 1 hour, stale-while-revalidate 24 hours
 const CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 
+// Generates weak ETag for JSON response - used for HTTP caching to detect changes
 function weakEtagForJson(body) {
   const payload = JSON.stringify(body);
   const hash = crypto.createHash("sha256").update(payload).digest("hex").slice(0, 32);
   return `W/"${hash}"`;
 }
 
+// Send list response with ETag caching - returns 304 Not Modified if unchanged
 function sendList(req, res, rows, { errorLabel }) {
   try {
     const etag = weakEtagForJson(rows);
@@ -32,6 +35,7 @@ function sendList(req, res, rows, { errorLabel }) {
   }
 }
 
+// GET /equipment - Retrieve list of all available exercise equipment (cached with ETag)
 router.get("/equipment", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -55,6 +59,7 @@ router.get("/equipment", async (req, res) => {
   }
 });
 
+// GET /exercise-types - Retrieve list of all exercise types (cached with ETag)
 router.get("/exercise-types", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -80,6 +85,7 @@ router.get("/exercise-types", async (req, res) => {
   }
 });
 
+// GET /muscle-groups - Retrieve list of all muscle groups with images (cached with ETag)
 router.get("/muscle-groups", async (req, res) => {
   try {
     const { data, error } = await supabase

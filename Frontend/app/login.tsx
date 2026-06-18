@@ -1,3 +1,4 @@
+// User login screen with email and password validation
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -38,6 +39,7 @@ export default function LoginScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    // Handle login submission with email and password validation
     const onSubmit = async () => {
         setErrorMessage(null);
         const normalizedEmail = email.trim().toLowerCase();

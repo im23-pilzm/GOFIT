@@ -1,3 +1,4 @@
+// Active workout screen with exercise tracking, timer, and set/rep/weight logging
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -46,6 +47,7 @@ type EditingCell = {
   field: EditableField;
 };
 
+// Format elapsed time in HH:MM:SS format
 function formatElapsed(seconds: number) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
   const hours = Math.floor(safeSeconds / 3600);
@@ -59,6 +61,7 @@ function formatElapsed(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
+// Format rest/pause timer in human-readable format (e.g., "2m30s")
 function formatPauseTimer(seconds: number): string {
   if (seconds <= 0) {
     return '0';

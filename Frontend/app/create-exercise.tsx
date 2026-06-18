@@ -1,3 +1,4 @@
+// Custom exercise creation screen with equipment and muscle group selection
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -50,6 +51,7 @@ type Params = {
   otherToken?: string;
 };
 
+// Initialize empty exercise draft with default values
 const createDefaultDraft = (): DraftState => ({
   name: '',
   isPublic: false,
@@ -61,6 +63,7 @@ const createDefaultDraft = (): DraftState => ({
   otherMuscleNames: [],
 });
 
+// Parse URL parameter containing JSON array string
 function parseStringArray(value: string | undefined) {
   if (!value) {
     return [];

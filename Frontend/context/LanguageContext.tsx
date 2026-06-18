@@ -1,12 +1,16 @@
+// Language/i18n context - manages app language and translations
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+// Storage key for persisting language preference
 const LANGUAGE_STORAGE_KEY = 'app_language_v1';
 
+// Supported languages
 const SUPPORTED_LANGUAGES = ['en', 'de-CH'] as const;
 
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
+// Translation key type - all available translation strings
 type TranslationKey =
   | 'profile.title'
   | 'profile.section.profileData'
@@ -198,17 +202,21 @@ const translations: Record<AppLanguage, TranslationMap> = {
   },
 };
 
+// Type for language context value with current language and translation function
 type LanguageContextValue = {
   language: AppLanguage;
   setLanguage: (nextLanguage: AppLanguage) => Promise<void>;
   t: (key: TranslationKey) => string;
 };
 
+// Create language context
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+// Language provider - initializes language and provides translation function
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<AppLanguage>('de-CH');
 
+  // Load stored language preference from AsyncStorage on mount
   useEffect(() => {
     const loadStoredLanguage = async () => {
       const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -221,11 +229,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     void loadStoredLanguage();
   }, []);
 
+  // Update language state and persist to storage
   const setLanguage = async (nextLanguage: AppLanguage) => {
     setLanguageState(nextLanguage);
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   };
 
+  // Memoize context value with translation function
   const value = useMemo<LanguageContextValue>(() => {
     const dict = translations[language];
 
@@ -239,6 +249,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
+// Hook to access language context
 export function useLanguage() {
   const context = useContext(LanguageContext);
 

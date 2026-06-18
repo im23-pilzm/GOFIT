@@ -1,9 +1,10 @@
+// Import dependencies for testing
 const request = require('supertest');
 const express = require('express');
 const workoutRoutes = require('./routes/workouts');
 const { supabase } = require('./supabaseClient');
 
-// Mocking supabase client
+// Mock Supabase client - intercept auth.getUser calls
 jest.mock('./supabaseClient', () => ({
   supabase: {
     auth: {
@@ -12,6 +13,7 @@ jest.mock('./supabaseClient', () => ({
   }
 }));
 
+// Mock Supabase query builder methods
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
@@ -23,6 +25,7 @@ const mockOrder = jest.fn();
 const mockLimit = jest.fn();
 const mockRange = jest.fn();
 
+// Mock user client with chainable query methods
 const mockUserClient = {
   from: jest.fn(() => ({
     select: mockSelect,
@@ -38,25 +41,29 @@ const mockUserClient = {
   })),
 };
 
+// Mock Supabase createClient
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => mockUserClient),
 }));
 
+// Create Express app for testing with workout routes
 const app = express();
 app.use(express.json());
 app.use('/api/workouts', workoutRoutes);
 
+// Test suite for Workout Exercises API
 describe('Workout Exercises API', () => {
   const mockUser = { id: '550e8400-e29b-41d4-a716-446655440001', email: 'test@example.com' };
   const mockToken = 'valid-token';
   const workoutId = '550e8400-e29b-41d4-a716-446655440002';
   const exerciseId = '550e8400-e29b-41d4-a716-446655440003';
 
+  // Clear mocks before each test and set default return values
   beforeEach(() => {
     jest.clearAllMocks();
     supabase.auth.getUser.mockResolvedValue({ data: { user: mockUser }, error: null });
     
-    // Default chain returns
+    // Default chain returns for query builder
     mockSelect.mockReturnValue({ eq: mockEq });
     mockEq.mockReturnValue({ eq: mockEq, maybeSingle: mockMaybeSingle, order: mockOrder, select: mockSelect, single: mockSingle });
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
@@ -64,6 +71,7 @@ describe('Workout Exercises API', () => {
     mockLimit.mockReturnValue({ maybeSingle: mockMaybeSingle });
   });
 
+  // Test group for GET /api/workouts/:workoutId/exercises
   describe('GET /api/workouts/:workoutId/exercises', () => {
     it('should return 404 if workout not found or not owned', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
@@ -94,6 +102,7 @@ describe('Workout Exercises API', () => {
     });
   });
 
+  // Test group for POST /api/workouts/:workoutId/exercises
   describe('POST /api/workouts/:workoutId/exercises', () => {
     it('should add exercise with auto-position if not provided', async () => {
       // Mock workout check

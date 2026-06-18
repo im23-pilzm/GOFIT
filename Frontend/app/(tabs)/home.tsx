@@ -1,3 +1,4 @@
+// Home dashboard showing scheduled workouts, stats, and quick actions
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,

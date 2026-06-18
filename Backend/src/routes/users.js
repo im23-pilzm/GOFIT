@@ -4,6 +4,7 @@ const Joi = require("joi");
 const { createClient } = require("@supabase/supabase-js");
 const { supabase } = require("../supabaseClient");
 
+// Creates Supabase client authenticated with user's access token for RLS-protected queries
 const createAuthedSupabase = (accessToken) =>
   createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
     global: {
@@ -13,12 +14,15 @@ const createAuthedSupabase = (accessToken) =>
     },
   });
 
+// Schema for validating user ID parameter
 const idParamSchema = Joi.object({
   id: Joi.string().trim().min(1).required(),
 });
 
+// Schema for user update - allows any fields, at least one required
 const updateUserSchema = Joi.object().unknown(true).min(1);
 
+// Middleware: Authenticates user from Bearer token, sets req.user and req.accessToken
 const auth = async (req, res, next) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
@@ -35,6 +39,7 @@ const auth = async (req, res, next) => {
   next();
 };
 
+// Middleware: Validates user ID parameter format
 const validateId = (req, res, next) => {
   const { error } = idParamSchema.validate(req.params);
   if (error) {
@@ -43,6 +48,7 @@ const validateId = (req, res, next) => {
   next();
 };
 
+// Middleware: Ensures user can only access/modify their own profile
 const ensureSelf = (req, res, next) => {
   if (req.user.id !== req.params.id) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -50,8 +56,10 @@ const ensureSelf = (req, res, next) => {
   next();
 };
 
+// Apply authentication and permission checks to all /:id routes
 router.use("/:id", auth, validateId, ensureSelf);
 
+// GET /users/:id - Get authenticated user's profile (id, email, created_at)
 router.get("/:id", async (req, res) => {
   const userId = req.params.id;
 
@@ -70,6 +78,7 @@ router.get("/:id", async (req, res) => {
   res.status(200).json(data);
 });
 
+// PUT /users/:id - Update user profile (currently no fields are updateable)
 router.put("/:id", async (req, res) => {
   const userId = req.params.id;
 

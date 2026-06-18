@@ -1,8 +1,10 @@
+// Authentication context - manages user session and auth operations
 import { Session } from '@supabase/supabase-js';
 import { ReactNode, createContext, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
+// Type for authentication context value with session and auth methods
 type AuthContextValue = {
     session: Session | null;
     isLoading: boolean;
@@ -11,6 +13,7 @@ type AuthContextValue = {
     signOut: () => Promise<void>;
 };
 
+// Response type from backend auth endpoints
 type AuthApiResponse = {
     user: {
         id: string;
@@ -25,17 +28,20 @@ type AuthApiResponse = {
     email_confirmation_required?: boolean;
 };
 
+// Create auth context
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 type AuthProviderProps = {
     children: ReactNode;
 };
 
+// Auth provider component - initializes session and provides auth methods
 export function AuthProvider({ children }: AuthProviderProps) {
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
+    // Load initial session and subscribe to auth state changes
+    useEffect(() {
         let mounted = true;
 
         const loadSession = async () => {
@@ -66,6 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
     }, []);
 
+    // Login with email and password via API, then set session
     const signIn = async (email: string, password: string) => {
         const data = await apiRequest<AuthApiResponse>('/api/auth/login', {
             method: 'POST',
@@ -86,6 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
+    // Register with email and password via API, then set session
     const signUp = async (email: string, password: string) => {
         const data = await apiRequest<AuthApiResponse>('/api/auth/register', {
             method: 'POST',
@@ -106,6 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
+    // Sign out current user
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
 
@@ -114,6 +123,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
+    // Memoize context value to prevent unnecessary re-renders
     const value = useMemo(
         () => ({ session, isLoading, signIn, signUp, signOut }),
         [session, isLoading]

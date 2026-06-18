@@ -1,3 +1,4 @@
+// Root navigation layout with theme setup and route stack configuration
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,12 +11,14 @@ import { LanguageProvider } from '../context/LanguageContext'
 import { useLanguage } from '../hooks/useLanguage'
 import { useAuth } from '../hooks/useAuth'
 
+// Main navigation stack - routes to login/register or main tabs based on auth state
 function RootNavigator() {
   const { session, isLoading } = useAuth();
   const { language } = useLanguage();
   const loginTitle = language === 'de-CH' ? 'Anmelden' : 'Login';
   const registerTitle = language === 'de-CH' ? 'Registrieren' : 'Register';
 
+  // Show loading indicator while checking auth state
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

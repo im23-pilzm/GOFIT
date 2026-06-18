@@ -1,3 +1,4 @@
+// User profile screen - personal info, preferences, password management
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -17,6 +18,7 @@ import type { AppLanguage } from '@/hooks/useLanguage';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/lib/supabase';
 
+// Profile field constraints
 const MIN_HEIGHT_CM = 100;
 const MAX_HEIGHT_CM = 250;
 const MIN_WEIGHT_KG = 30;
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
   const meta = session?.user?.user_metadata ?? {};
   const userEmail = session?.user?.email ?? '';
 
+  // Personal information fields
   // Profile state
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -52,6 +55,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState<PickerType>(null);
 
+  // Password management
   // PASSWORD STATE
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [oldPassword, setOldPassword] = useState('');

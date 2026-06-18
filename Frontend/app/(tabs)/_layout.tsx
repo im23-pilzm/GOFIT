@@ -1,15 +1,18 @@
+// Tab navigation layout with custom animated tab bar
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, View } from 'react-native';
 import { useLanguage } from '@/hooks/useLanguage';
 
+// Tab bar icons mapping
 const ICONS: Record<string, number> = {
   home: require('../../assets/icons/home.png'),
   workouts: require('../../assets/icons/dumbbell 1.png'),
   profile: require('../../assets/icons/profile.png'),
 };
 
+// Custom animated bottom tab bar with active indicator pill
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const [barWidth, setBarWidth] = useState(0);
   const translateX = useRef(new Animated.Value(0)).current;

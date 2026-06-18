@@ -41,7 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [isLoading, setIsLoading] = useState(true);
 
     // Load initial session and subscribe to auth state changes
-    useEffect(() {
+    useEffect(() => {
         let mounted = true;
 
         const loadSession = async () => {
